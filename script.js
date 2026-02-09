@@ -1,24 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Initialization & Elements ---
+    // --- 1. 初始化與按鈕綁定 ---
     const canvas = document.getElementById('graphCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('canvasContainer');
     const contextMenu = document.getElementById('contextMenu');
     const renameInput = document.getElementById('renameInput');
 
-    // Button Bindings
+    // 綁定按鈕 (這裡會呼叫下面的函數)
     document.getElementById('btnPreview').onclick = generateJSON;
     document.getElementById('btnDownload').onclick = downloadJSON;
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
-    document.getElementById('btnClear').onclick = openConfirmModal;
+    document.getElementById('btnClear').onclick = openConfirmModal; // 這裡現在找得到了！
     
-    // Modal Bindings
+    // 綁定視窗按鈕
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
 
-    // --- Data Models & State ---
+    // --- 2. 變數與狀態 ---
     let nodes = []; 
     let edges = []; 
     
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRenaming = false;
     let renamingNode = null;
 
-    // Constants
+    // 常數設定
     const BASE_RADIUS = 25; 
     const PADDING_RADIUS = 15; 
     const THEME = {
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         grid: 'rgba(0, 229, 255, 0.1)'
     };
 
-    // --- Core Functions ---
+    // --- 3. 核心功能 ---
     function resize() {
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resize);
     setTimeout(resize, 100);
 
-    // Helpers
+    // 座標轉換
     function screenToWorld(sx, sy) {
         const rect = canvas.getBoundingClientRect();
         return {
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(BASE_RADIUS, (metrics.width / 2) + PADDING_RADIUS);
     }
 
-    // --- Event Listeners ---
+    // --- 4. 滑鼠與鍵盤事件 ---
 
     canvas.addEventListener('mousedown', e => {
         if(isRenaming) finishRenaming();
@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const node = getNodeAt(pos.x, pos.y);
         const edge = getEdgeAt(pos.x, pos.y);
 
+        // 平移畫布判定
         if (e.button === 1 || (e.button === 0 && !node && !edge && !e.shiftKey)) {
             isPanning = true;
             panStart = { x: e.clientX, y: e.clientY };
@@ -107,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 左鍵點擊判定
         if (e.button === 0) {
             if (e.shiftKey && node) {
                 isCreatingEdge = true;
@@ -228,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Context Menu ---
+    // --- 5. 右鍵選單 ---
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
         const pos = screenToWorld(e.clientX, e.clientY);
@@ -274,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideContextMenu() { contextMenu.style.display = 'none'; }
 
-    // --- Renaming Logic ---
+    // --- 6. 重新命名功能 ---
     function startRenaming(node) {
         if (!node) return;
         isRenaming = true;
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renameInput.addEventListener('blur', () => setTimeout(() => { if (isRenaming) finishRenaming(); }, 100));
 
-    // --- Graph Operations ---
+    // --- 7. 圖形操作邏輯 ---
     function spawnNode() {
         const name = "State" + (nodes.length + 1);
         const r = calculateNodeRadius(name);
@@ -344,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Drawing ---
+    // --- 8. 繪圖引擎 ---
     function draw() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -437,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Utils & Hit Testing ---
+    // --- 9. 碰撞檢測 ---
     function getNodeAt(x, y) {
         for (let i = nodes.length - 1; i >= 0; i--) {
             const n = nodes[i];
@@ -472,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // --- JSON Import/Export ---
+    // --- 10. JSON 與 視窗控制 ---
     function generateJSON() {
         document.getElementById('codeOutput').value = JSON.stringify(buildJSONObj(), null, 2);
         document.getElementById('codeModal').style.display = 'flex';
@@ -564,19 +566,19 @@ document.addEventListener('DOMContentLoaded', () => {
         draw();
     }
 
-    // --- Modal Logic ---
-    window.openConfirmModal = function() {
+    // --- 11. 視窗控制函數 (從 window.xxx 改回一般 function) ---
+    function openConfirmModal() {
         document.getElementById('confirmModal').style.display = 'flex';
     }
 
-    window.confirmClearCanvas = function() {
+    function confirmClearCanvas() {
         nodes = [];
         edges = [];
         draw();
         closeModal('confirmModal');
     }
 
-    window.closeModal = function(id) {
+    function closeModal(id) {
         document.getElementById(id).style.display = 'none';
     }
 });
