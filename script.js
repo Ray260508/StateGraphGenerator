@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function downloadJSON() {
         const json = document.getElementById('codeOutput').value || JSON.stringify(buildJSONObj(), null, 2);
-        saveFile(json, 'graph_adj_list.json');
+        saveFile(json, 'untitled.json');
     }
     function downloadJSONFromModal() { downloadJSON(); }
     
@@ -422,9 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return adjList;
     }
 
-    // --- 10. Layout JSON 匯出 (✅ 新增功能) ---
+    // --- 10. Layout JSON 匯出 ( 新增功能) ---
     function downloadLayoutJSON() {
-        // 我們需要儲存：
+        // 儲存：
         // 1. 節點資訊 (名稱、X、Y)
         // 2. 連線資訊 (來源、目標、類型)
         const layoutData = {
@@ -435,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 y: n.y,
                 radius: n.radius
             })),
-            // edges 我們存名字，匯入時再對應回物件
+            // edges 存名字，匯入時再對應回物件
             edges: edges.map(e => ({
                 from: e.from.name,
                 to: e.to.name,
@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
-    // --- 11. 匯入邏輯 (✅ 智慧判斷) ---
+    // --- 11. 匯入邏輯  ---
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try { 
                 const data = JSON.parse(e.target.result);
                 
-                // ✅ 判斷是哪種格式
+                // 判斷是哪種格式
                 if (data.format === "layout_v1" && Array.isArray(data.nodes)) {
                     // A. Layout 格式 -> 還原位置
                     parseLayoutFormat(data);
