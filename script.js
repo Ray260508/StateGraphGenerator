@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resolveCollisions() {
-        const PADDING = 10; // 節點之間的最小間距
+        const PADDING = 30; // 節點之間的最小間距
 
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
