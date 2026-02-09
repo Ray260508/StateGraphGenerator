@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('canvasContainer');
     const contextMenu = document.getElementById('contextMenu');
     const renameInput = document.getElementById('renameInput');
+    const projectTitle = document.getElementById('projectTitle'); // 新增標題變數
 
     // 綁定按鈕
     document.getElementById('btnPreview').onclick = generateJSON;
@@ -17,6 +18,36 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
+
+    // --- 標題輸入框邏輯 (新增) ---
+    function updateTitleStyle() {
+        if (projectTitle.value.trim() === 'Untitled' || projectTitle.value.trim() === '') {
+            projectTitle.classList.add('is-default');
+        } else {
+            projectTitle.classList.remove('is-default');
+        }
+    }
+    // 初始化樣式
+    updateTitleStyle();
+
+    projectTitle.addEventListener('input', updateTitleStyle);
+    projectTitle.addEventListener('focus', () => {
+        // 點擊時如果是 Untitled，自動全選方便修改
+        if (projectTitle.value === 'Untitled') {
+            projectTitle.select();
+        }
+    });
+    projectTitle.addEventListener('blur', () => {
+        // 如果清空了，自動補回 Untitled
+        if (projectTitle.value.trim() === '') {
+            projectTitle.value = 'Untitled';
+            updateTitleStyle();
+        }
+    });
+    projectTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') projectTitle.blur(); // 按 Enter 完成編輯
+    });
+
 
     // --- 2. 變數與狀態 ---
     let nodes = []; 
@@ -100,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const node = getNodeAt(pos.x, pos.y);
         const edge = getEdgeAt(pos.x, pos.y);
 
-        // 平移畫布判定
         if (e.button === 1 || (e.button === 0 && !node && !edge && !e.shiftKey)) {
             isPanning = true;
             panStart = { x: e.clientX, y: e.clientY };
@@ -108,9 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 左鍵點擊判定
         if (e.button === 0) {
-            // 如果正在連線模式下點擊空白處，也可以取消連線 (選擇性功能，這裡主要靠 ESC)
             if (isCreatingEdge && !node) {
                  cancelEdgeCreation();
                  return;
@@ -122,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedNode = null;
                 selectedEdge = null;
             } else if (node) {
-                // 如果正在建立連線，點擊另一個節點 = 完成連線
                 if (isCreatingEdge && dragStartNode && node !== dragStartNode) {
                     createEdge(dragStartNode, node);
                     isCreatingEdge = false;
@@ -178,19 +205,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pos = screenToWorld(e.clientX, e.clientY);
         
-        // 拖曳放開時建立連線 (Shift+Drag 模式)
         if (isCreatingEdge && dragStartNode) {
             const targetNode = getNodeAt(pos.x, pos.y);
             if (targetNode && targetNode !== dragStartNode) {
                 createEdge(dragStartNode, targetNode);
-                // 只有在 Shift 拖曳模式下，放開滑鼠才結束連線
-                // 如果是右鍵選單觸發的，這裡不結束，等待再次點擊
                 if (e.shiftKey) { 
                     isCreatingEdge = false;
                     dragStartNode = null;
                 }
             } else if (e.shiftKey) {
-                // Shift 模式下放開在空白處 -> 取消
                 isCreatingEdge = false;
                 dragStartNode = null;
             }
@@ -238,22 +261,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 關鍵修改：ESC 取消連線 ---
     window.addEventListener('keydown', e => {
-        // 1. 處理輸入框內的 ESC
         if (isRenaming) {
             if (e.key === 'Enter') finishRenaming();
             if (e.key === 'Escape') cancelRenaming();
             return;
         }
 
-        // 2. 處理連線模式的 ESC (新增功能)
         if (e.key === 'Escape') {
             if (isCreatingEdge) {
                 cancelEdgeCreation();
                 return;
             }
-            // 取消選取
             if (selectedNode || selectedEdge) {
                 selectedNode = null;
                 selectedEdge = null;
@@ -262,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 3. 刪除鍵
         if (e.key === 'Delete') {
             if (selectedNode) deleteNode(selectedNode);
             else if (selectedEdge) {
@@ -319,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function hideContextMenu() { contextMenu.style.display = 'none'; }
 
-    // --- 6. 重新命名功能 ---
+    // --- 6. 重新命名功能 (節點) ---
     function startRenaming(node) {
         if (!node) return;
         isRenaming = true;
@@ -382,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function cancelEdgeCreation() {
         isCreatingEdge = false;
         dragStartNode = null;
-        draw(); // 重繪以消除虛線
+        draw(); 
     }
 
     function createEdge(n1, n2) {
@@ -535,7 +553,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'graph_adj_list.json';
+        
+        // 取得標題作為檔名，如果是 Untitled 或空白，則使用預設值
+        let filename = projectTitle.value.trim();
+        if(!filename || filename === 'Untitled') filename = 'graph_adj_list';
+        
+        a.download = `${filename}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -560,6 +583,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
+        
+        // 自動將標題設定為匯入檔案的名稱 (移除 .json 副檔名)
+        const fileNameWithoutExt = file.name.replace(/\.json$/i, "");
+        projectTitle.value = fileNameWithoutExt;
+        updateTitleStyle();
+
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
@@ -624,6 +653,9 @@ document.addEventListener('DOMContentLoaded', () => {
         nodes = [];
         edges = [];
         draw();
+        // 清空時標題也重置回 Untitled
+        projectTitle.value = 'Untitled';
+        updateTitleStyle();
         closeModal('confirmModal');
     }
 

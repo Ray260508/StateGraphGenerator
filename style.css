@@ -37,6 +37,33 @@ h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 1p
 
 .main-container { display: flex; flex: 1; position: relative; }
 
+#projectTitle {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent-color);
+    text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
+    padding: 5px;
+    width: 300px;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+#projectTitle:hover, #projectTitle:focus {
+    border-bottom: 2px solid rgba(0, 229, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#projectTitle.is-default {
+    color: rgba(0, 229, 255, 0.4);
+    text-shadow: none;
+    font-style: italic;
+}
+
 /* Sidebar */
 .controls { 
     width: 300px; 
