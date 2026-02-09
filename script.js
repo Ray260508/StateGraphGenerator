@@ -10,14 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 按鈕監聽
     document.getElementById('btnPreview').onclick = generateJSON;
     document.getElementById('btnDownload').onclick = downloadJSON; // 下載純結構
-    
+
     // ✅ 新增：下載 Layout
-    document.getElementById('btnExportLayout').onclick = downloadLayoutJSON; 
+    document.getElementById('btnExportLayout').onclick = downloadLayoutJSON;
 
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
     document.getElementById('btnClear').onclick = openConfirmModal;
-    
+
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
@@ -37,10 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
     projectTitle.addEventListener('keydown', (e) => { if (e.key === 'Enter') projectTitle.blur(); });
 
     // --- 2. 核心資料結構 ---
-    let nodes = []; 
-    let edges = []; 
+    let nodes = [];
+    let edges = [];
     let camera = { x: 0, y: 0, zoom: 1 };
-    
+
     let selectedNode = null;
     let selectedEdge = null;
     let draggingNode = null;
@@ -48,14 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let panStart = { x: 0, y: 0 };
     let isCreatingEdge = false;
     let dragStartNode = null;
-    let mouseX = 0; let mouseY = 0; 
-    let contextMenuPos = { x: 0, y: 0 }; 
+    let mouseX = 0; let mouseY = 0;
+    let contextMenuPos = { x: 0, y: 0 };
     let isRenaming = false;
     let renamingNode = null;
 
     // 常數
-    const BASE_RADIUS = 25; 
-    const PADDING_RADIUS = 15; 
+    const BASE_RADIUS = 25;
+    const PADDING_RADIUS = 15;
     const THEME = {
         nodeFill: '#1e1e1e', nodeBorder: '#00e5ff', nodeText: '#ffffff',
         nodeSelected: '#ff0055', edge: '#666666', edgeSelected: '#ff0055',
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 渲染循環 ---
     function animate() {
-        draw();          
+        draw();
         requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
@@ -102,9 +102,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 5. 互動事件監聽 ---
     canvas.addEventListener('mousedown', e => {
-        if(isRenaming) finishRenaming();
+        if (isRenaming) finishRenaming();
         hideContextMenu();
-        
+
         const pos = screenToWorld(e.clientX, e.clientY);
         mouseX = pos.x; mouseY = pos.y;
         const node = getNodeAt(pos.x, pos.y);
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (e.button === 0) { 
+        if (e.button === 0) {
             if (isCreatingEdge && !node) { cancelEdgeCreation(); return; }
             if (e.shiftKey && node) {
                 isCreatingEdge = true; dragStartNode = node;
@@ -146,12 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const dy = e.clientY - panStart.y;
             camera.x += dx; camera.y += dy;
             panStart = { x: e.clientX, y: e.clientY };
-            if(isRenaming) updateRenameInputPosition(); 
+            if (isRenaming) updateRenameInputPosition();
             return;
         }
         if (draggingNode) {
             draggingNode.x = pos.x; draggingNode.y = pos.y;
-            if(isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
+            if (isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
         }
     });
 
@@ -166,12 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (e.shiftKey) {
                 isCreatingEdge = false; dragStartNode = null;
             }
-        } 
+        }
         if (selectedEdge && !draggingNode && !isCreatingEdge) {
-             const edgeCheck = getEdgeAt(pos.x, pos.y);
-             if (edgeCheck === selectedEdge) {
-                 selectedEdge.type = selectedEdge.type === 'directed' ? 'bidirectional' : 'directed';
-             }
+            const edgeCheck = getEdgeAt(pos.x, pos.y);
+            if (edgeCheck === selectedEdge) {
+                selectedEdge.type = selectedEdge.type === 'directed' ? 'bidirectional' : 'directed';
+            }
         }
         draggingNode = null;
     });
@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const zoomIntensity = 0.1;
         const delta = e.deltaY < 0 ? 1 : -1;
-        const zoomFactor = Math.exp(delta * zoomIntensity); 
+        const zoomFactor = Math.exp(delta * zoomIntensity);
         const newZoom = camera.zoom * zoomFactor;
         if (newZoom > 0.05 && newZoom < 10) {
             const rect = canvas.getBoundingClientRect();
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             camera.zoom = newZoom;
             camera.x = mouseScreenX - mouseWorldX * camera.zoom;
             camera.y = mouseScreenY - mouseWorldY * camera.zoom;
-            if(isRenaming) updateRenameInputPosition();
+            if (isRenaming) updateRenameInputPosition();
         }
     }, { passive: false });
 
@@ -222,13 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const pos = screenToWorld(e.clientX, e.clientY);
         const node = getNodeAt(pos.x, pos.y);
-        contextMenuPos = pos; 
+        contextMenuPos = pos;
         buildContextMenu(node);
         contextMenu.style.display = 'block';
         contextMenu.style.left = e.clientX + 'px';
         contextMenu.style.top = e.clientY + 'px';
     });
-    window.addEventListener('click', (e) => { if(e.target !== renameInput) hideContextMenu(); });
+    window.addEventListener('click', (e) => { if (e.target !== renameInput) hideContextMenu(); });
 
     function buildContextMenu(targetNode) {
         contextMenu.innerHTML = '';
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.beginPath();
             ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
             ctx.fillStyle = THEME.nodeFill; ctx.fill();
-            ctx.lineWidth = 2 / camera.zoom * camera.zoom; 
+            ctx.lineWidth = 2 / camera.zoom * camera.zoom;
             ctx.strokeStyle = (node === selectedNode) ? THEME.nodeSelected : THEME.nodeBorder;
             ctx.stroke();
             ctx.fillStyle = THEME.nodeText;
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function drawGrid() {
         let gridSize = 40 * camera.zoom;
-        while(gridSize < 20) gridSize *= 2; while(gridSize > 80) gridSize /= 2;
+        while (gridSize < 20) gridSize *= 2; while (gridSize > 80) gridSize /= 2;
         const offsetX = camera.x % gridSize; const offsetY = camera.y % gridSize;
         ctx.beginPath(); ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
         for (let x = offsetX; x < canvas.width; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
@@ -408,14 +408,14 @@ document.addEventListener('DOMContentLoaded', () => {
         saveFile(json, 'graph_adj_list.json');
     }
     function downloadJSONFromModal() { downloadJSON(); }
-    
+
     function buildJSONObj() {
         let adjList = {};
-        [...nodes].sort((a,b)=>a.name.localeCompare(b.name)).forEach(node => {
+        [...nodes].sort((a, b) => a.name.localeCompare(b.name)).forEach(node => {
             let neighbors = [];
             edges.forEach(edge => {
-                if(edge.from === node) neighbors.push(edge.to.name);
-                else if(edge.to === node && edge.type === 'bidirectional') neighbors.push(edge.from.name);
+                if (edge.from === node) neighbors.push(edge.to.name);
+                else if (edge.to === node && edge.type === 'bidirectional') neighbors.push(edge.from.name);
             });
             adjList[node.name] = [...new Set(neighbors)].sort();
         });
@@ -453,17 +453,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        
+
         let filename = projectTitle.value.trim();
-        if(!filename || filename === 'Untitled') filename = defaultName.replace('.json', '');
-        
+        if (!filename || filename === 'Untitled') filename = defaultName.replace('.json', '');
+
         // 根據是不是 layout 來決定檔名
-        if(defaultName.includes('layout')) {
+        if (defaultName.includes('layout')) {
             a.download = `${filename}_layout.json`;
         } else {
             a.download = `${filename}.json`;
         }
-        
+
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
-        
+
         // 檔名處理：移除 .json 和 _layout
         let rawName = file.name.replace(/\.json$/i, "");
         if (rawName.endsWith('_layout')) {
@@ -484,10 +484,10 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTitleStyle();
 
         const reader = new FileReader();
-        reader.onload = function(e) {
-            try { 
+        reader.onload = function (e) {
+            try {
                 const data = JSON.parse(e.target.result);
-                
+
                 // ✅ 判斷是哪種格式
                 if (data.format === "layout_v1" && Array.isArray(data.nodes)) {
                     // A. Layout 格式 -> 還原位置
@@ -496,9 +496,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // B. 純 Adjacency List -> 隨機排列
                     parseSimpleFormat(data);
                 }
-            } catch (err) { 
+            } catch (err) {
                 console.error(err);
-                alert("JSON 格式錯誤"); 
+                alert("JSON 格式錯誤");
             }
             input.value = '';
         };
@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function parseLayoutFormat(data) {
         nodes = [];
         edges = [];
-        
+
         // 1. 還原節點
         const nodeMap = {};
         data.nodes.forEach(nData => {
@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
         camera.x = canvas.width / 2;
         camera.y = canvas.height / 2;
         camera.zoom = 1;
-        
+
         // 嘗試將圖形置中顯示
         // centerGraph(); // 選用
         draw();
@@ -553,11 +553,11 @@ document.addEventListener('DOMContentLoaded', () => {
             nodeSet.add(k); if (Array.isArray(data[k])) data[k].forEach(n => nodeSet.add(n));
         });
         const allNodeNames = Array.from(nodeSet).sort();
-        
+
         allNodeNames.forEach((name) => {
             nodes.push({
                 id: name, name: name,
-                x: (Math.random()-0.5)*300, y: (Math.random()-0.5)*300,
+                x: (Math.random() - 0.5) * 300, y: (Math.random() - 0.5) * 300,
                 radius: calculateNodeRadius(name)
             });
         });
