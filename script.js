@@ -6,12 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const contextMenu = document.getElementById('contextMenu');
     const renameInput = document.getElementById('renameInput');
 
-    // 綁定按鈕 (這裡會呼叫下面的函數)
+    // 綁定按鈕
     document.getElementById('btnPreview').onclick = generateJSON;
     document.getElementById('btnDownload').onclick = downloadJSON;
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
-    document.getElementById('btnClear').onclick = openConfirmModal; // 這裡現在找得到了！
+    document.getElementById('btnClear').onclick = openConfirmModal;
     
     // 綁定視窗按鈕
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
@@ -110,15 +110,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 左鍵點擊判定
         if (e.button === 0) {
+            // 如果正在連線模式下點擊空白處，也可以取消連線 (選擇性功能，這裡主要靠 ESC)
+            if (isCreatingEdge && !node) {
+                 cancelEdgeCreation();
+                 return;
+            }
+
             if (e.shiftKey && node) {
                 isCreatingEdge = true;
                 dragStartNode = node;
                 selectedNode = null;
                 selectedEdge = null;
             } else if (node) {
-                draggingNode = node;
-                selectedNode = node;
-                selectedEdge = null;
+                // 如果正在建立連線，點擊另一個節點 = 完成連線
+                if (isCreatingEdge && dragStartNode && node !== dragStartNode) {
+                    createEdge(dragStartNode, node);
+                    isCreatingEdge = false;
+                    dragStartNode = null;
+                } else {
+                    draggingNode = node;
+                    selectedNode = node;
+                    selectedEdge = null;
+                }
             } else if (edge) {
                 selectedEdge = edge;
                 selectedNode = null;
@@ -165,20 +178,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pos = screenToWorld(e.clientX, e.clientY);
         
+        // 拖曳放開時建立連線 (Shift+Drag 模式)
         if (isCreatingEdge && dragStartNode) {
             const targetNode = getNodeAt(pos.x, pos.y);
             if (targetNode && targetNode !== dragStartNode) {
                 createEdge(dragStartNode, targetNode);
+                // 只有在 Shift 拖曳模式下，放開滑鼠才結束連線
+                // 如果是右鍵選單觸發的，這裡不結束，等待再次點擊
+                if (e.shiftKey) { 
+                    isCreatingEdge = false;
+                    dragStartNode = null;
+                }
+            } else if (e.shiftKey) {
+                // Shift 模式下放開在空白處 -> 取消
+                isCreatingEdge = false;
+                dragStartNode = null;
             }
-        } else if (selectedEdge && !draggingNode && !isCreatingEdge) {
+        } 
+        
+        if (selectedEdge && !draggingNode && !isCreatingEdge) {
              const edgeCheck = getEdgeAt(pos.x, pos.y);
              if (edgeCheck === selectedEdge) {
                  selectedEdge.type = selectedEdge.type === 'directed' ? 'bidirectional' : 'directed';
              }
         }
 
-        isCreatingEdge = false;
-        dragStartNode = null;
         draggingNode = null;
         draw();
     });
@@ -214,12 +238,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- 關鍵修改：ESC 取消連線 ---
     window.addEventListener('keydown', e => {
+        // 1. 處理輸入框內的 ESC
         if (isRenaming) {
             if (e.key === 'Enter') finishRenaming();
             if (e.key === 'Escape') cancelRenaming();
             return;
         }
+
+        // 2. 處理連線模式的 ESC (新增功能)
+        if (e.key === 'Escape') {
+            if (isCreatingEdge) {
+                cancelEdgeCreation();
+                return;
+            }
+            // 取消選取
+            if (selectedNode || selectedEdge) {
+                selectedNode = null;
+                selectedEdge = null;
+                draw();
+                return;
+            }
+        }
+
+        // 3. 刪除鍵
         if (e.key === 'Delete') {
             if (selectedNode) deleteNode(selectedNode);
             else if (selectedEdge) {
@@ -334,6 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function startEdgeCreation(node) {
         isCreatingEdge = true;
         dragStartNode = node;
+    }
+
+    function cancelEdgeCreation() {
+        isCreatingEdge = false;
+        dragStartNode = null;
+        draw(); // 重繪以消除虛線
     }
 
     function createEdge(n1, n2) {
@@ -566,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         draw();
     }
 
-    // --- 11. 視窗控制函數 (從 window.xxx 改回一般 function) ---
+    // --- 11. 視窗控制函數 ---
     function openConfirmModal() {
         document.getElementById('confirmModal').style.display = 'flex';
     }
