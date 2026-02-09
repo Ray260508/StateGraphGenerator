@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('canvasContainer');
     const contextMenu = document.getElementById('contextMenu');
     const renameInput = document.getElementById('renameInput');
-    const projectTitle = document.getElementById('projectTitle'); // 新增標題變數
+    const projectTitle = document.getElementById('projectTitle');
 
     // 綁定按鈕
     document.getElementById('btnPreview').onclick = generateJSON;
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 標題輸入框邏輯 (新增) ---
     function updateTitleStyle() {
-        if (projectTitle.value.trim() === 'Untitled' || projectTitle.value.trim() === '') {
+        if (projectTitle.value.trim() === 'UNTITLED' || projectTitle.value.trim() === '') {
             projectTitle.classList.add('is-default');
         } else {
             projectTitle.classList.remove('is-default');
@@ -33,14 +33,14 @@ document.addEventListener('DOMContentLoaded', () => {
     projectTitle.addEventListener('input', updateTitleStyle);
     projectTitle.addEventListener('focus', () => {
         // 點擊時如果是 Untitled，自動全選方便修改
-        if (projectTitle.value === 'Untitled') {
+        if (projectTitle.value === 'UNTITLED') {
             projectTitle.select();
         }
     });
     projectTitle.addEventListener('blur', () => {
         // 如果清空了，自動補回 Untitled
         if (projectTitle.value.trim() === '') {
-            projectTitle.value = 'Untitled';
+            projectTitle.value = 'UNTITLED';
             updateTitleStyle();
         }
     });
@@ -312,12 +312,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildContextMenu(targetNode) {
         contextMenu.innerHTML = '';
         if (targetNode) {
-            addMenuItem("🔗 新增連線", () => startEdgeCreation(targetNode));
+            addMenuItem(" 新增連線 ", () => startEdgeCreation(targetNode));
             addMenuSeparator();
-            addMenuItem("✏️ 重新命名", () => startRenaming(targetNode));
-            addMenuItem("🗑️ 刪除", () => deleteNode(targetNode));
+            addMenuItem(" 重新命名 ", () => startRenaming(targetNode));
+            addMenuItem(" 刪除 ", () => deleteNode(targetNode));
         } else {
-            addMenuItem("🔵 新增節點", () => spawnNode());
+            addMenuItem(" 新增節點 ", () => spawnNode());
         }
     }
 
@@ -555,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.href = url;
         
         let filename = projectTitle.value.trim();
-        if(!filename || filename === 'Untitled') filename = 'graph_adj_list';
+        if(!filename || filename === 'UNTITLED') filename = 'graph_adj_list';
         
         a.download = `${filename}.json`;
         document.body.appendChild(a);
@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         edges = [];
         draw();
         // display Untitled when it's cleared
-        projectTitle.value = 'Untitled';
+        projectTitle.value = 'UNTITLED';
         updateTitleStyle();
         closeModal('confirmModal');
     }
