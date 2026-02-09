@@ -154,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     draggingNode = node;
                     selectedNode = node;
                     selectedEdge = null;
-                    // 拖曳時輕微喚醒物理
                     if(simulationAlpha < 0.2) simulationAlpha = 0.2;
                 }
             } else if (edge) {
@@ -364,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!existing) edges.push({ from: n1, to: n2, type: 'directed' });
     }
 
-    // --- 8. 物理引擎 (核心：度數中心性) ---
+    // --- 8. 物理引擎 (核心：防重疊 + 孤立點邊界) ---
     function startAutoLayout() {
         if (nodes.length === 0) return;
         simulationAlpha = 1.0; 
@@ -372,29 +371,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePhysics() {
         if (simulationAlpha < 0.01) return;
-        
-        // 修正 1: 讓冷卻更慢，給物理引擎更多時間跑位
         simulationAlpha *= 0.99; 
 
-        // 參數設定
+        // 參數
         const REPULSION = 8000;
         const SPRING_LEN = 150;
         const SPRING_STRENGTH = 0.05; 
         
-        // 重置力並計算 Degree (連線數)
         nodes.forEach(node => { 
-            node.fx = 0; 
-            node.fy = 0;
-            node.degree = 0; 
+            node.fx = 0; node.fy = 0; node.degree = 0; 
         });
 
-        // 計算 Degree
         edges.forEach(edge => {
             edge.from.degree++;
             edge.to.degree++;
         });
 
-        // 1. 排斥力 (所有節點互相排斥，不設距離限制，確保能推開孤立點)
+        // 1. 排斥力
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 let dx = nodes[i].x - nodes[j].x;
@@ -402,9 +395,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let distSq = dx * dx + dy * dy;
                 
                 if (distSq === 0) { dx = 1; distSq = 1; } 
-
                 let dist = Math.sqrt(distSq);
+
                 let force = (REPULSION / distSq) * simulationAlpha;
+
+                // 孤立節點稍微減少來自中心的排斥，避免飛太快
+                if (nodes[i].degree === 0 || nodes[j].degree === 0) {
+                     force *= 0.6;
+                }
 
                 let fx = (dx / dist) * force;
                 let fy = (dy / dist) * force;
@@ -432,29 +430,22 @@ document.addEventListener('DOMContentLoaded', () => {
             v.fx -= fx; v.fy -= fy;
         });
 
-        // 3. 應用力與「度數重力 (Degree-based Gravity)」
+        // 3. 應用力 & 邊界拉回
         nodes.forEach(node => {
             const distToCenter = Math.sqrt(node.x * node.x + node.y * node.y) || 1;
-            
-            // 修正 2: 依據 Degree 決定重力
-            // Degree 越高 (Hub) -> 重力越強 -> 往中心靠
-            // Degree 0 (Isolated) -> 負重力 -> 往外推
-            
             let gravityForce = 0;
 
             if (node.degree === 0) {
-                // 孤立點：如果太靠近中心 (<300)，給予強大的推力把它推走
-                // 如果已經在外面 (>300)，給予極微弱的拉力避免飛走
-                if (distToCenter < 300) {
-                    gravityForce = -0.05 * simulationAlpha; // 負值 = 推離中心
-                } else {
-                    gravityForce = 0.001 * simulationAlpha; // 極微弱拉力
+                // ✅ 孤立點邏輯：
+                // 如果距離中心 > 450，強力拉回 (像是有一條隱形的狗鍊)
+                if (distToCenter > 450) {
+                    gravityForce = (distToCenter - 450) * 0.005 * simulationAlpha; 
+                } else if (distToCenter < 250) {
+                    // 如果太近，推出去
+                    gravityForce = -0.05 * simulationAlpha;
                 }
-            } else if (node.degree === 1) {
-                // 末端點：弱重力，讓它被彈簧拉著就好，不要主動擠中心
-                gravityForce = 0.01 * simulationAlpha;
             } else {
-                // 核心點：連線越多，重力越強
+                // 一般節點：根據連線數決定向心力
                 gravityForce = (0.02 + (node.degree * 0.005)) * simulationAlpha;
             }
             
@@ -478,6 +469,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 node.y += node.vy;
             }
         });
+
+        // ✅ 4. 防重疊機制 (Collision Resolution)
+        // 在所有力計算完、位置更新後，執行「強制分開」
+        resolveCollisions();
+    }
+
+    function resolveCollisions() {
+        const PADDING = 10; // 節點之間的最小間距
+
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                let n1 = nodes[i];
+                let n2 = nodes[j];
+
+                let dx = n1.x - n2.x;
+                let dy = n1.y - n2.y;
+                let distSq = dx * dx + dy * dy;
+                let dist = Math.sqrt(distSq);
+
+                // 最小允許距離 = 兩者半徑和 + 間距
+                let minDist = n1.radius + n2.radius + PADDING;
+
+                if (dist < minDist) {
+                    // 發生重疊！
+                    if (dist === 0) { dx = 1; dy = 0; dist = 1; } // 防止完全重疊
+
+                    // 計算需要推開的距離 (Overlap Amount)
+                    let overlap = minDist - dist;
+                    
+                    // 每個節點各移動一半
+                    let moveX = (dx / dist) * (overlap * 0.5);
+                    let moveY = (dy / dist) * (overlap * 0.5);
+
+                    if (n1 !== draggingNode) {
+                        n1.x += moveX;
+                        n1.y += moveY;
+                    }
+                    if (n2 !== draggingNode) {
+                        n2.x -= moveX;
+                        n2.y -= moveY;
+                    }
+                }
+            }
+        }
     }
 
     // --- 9. 繪圖 ---
