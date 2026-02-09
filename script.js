@@ -79,10 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. 渲染循環 ---
     function animate() {
-        updatePhysics(); 
-        updateAutoFit(); // ✅ 每幀計算自動運鏡
-        draw();          
-        requestAnimationFrame(animate);
+        draw();
     }
     requestAnimationFrame(animate);
 
@@ -379,147 +376,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isAutoFitting = true; // ✅ 開啟自動運鏡
     }
 
-    // ✅ 新增：自動運鏡邏輯
-    function updateAutoFit() {
-        // 只有在物理模擬進行中，且開啟自動運鏡時執行
-        if (!isAutoFitting || nodes.length === 0) return;
-
-        // 如果物理模擬快停止了，自動運鏡也慢慢停止
-        if (simulationAlpha < 0.05) {
-            isAutoFitting = false;
-            return;
-        }
-
-        // 1. 計算邊界 (Bounding Box)
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        nodes.forEach(node => {
-            if (node.x < minX) minX = node.x;
-            if (node.x > maxX) maxX = node.x;
-            if (node.y < minY) minY = node.y;
-            if (node.y > maxY) maxY = node.y;
-        });
-
-        // 增加一點邊界半徑，確保節點圓圈也包在裡面
-        const padding = 100; // 邊距
-        const width = maxX - minX + padding * 2;
-        const height = maxY - minY + padding * 2;
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
-
-        // 2. 計算目標縮放比例 (Target Zoom)
-        // 確保寬高都塞得進去
-        const targetZoom = Math.min(
-            canvas.width / width, 
-            canvas.height / height
-        );
-
-        // 限制最大縮放，避免只有一個點時放超大
-        const clampedZoom = Math.min(targetZoom, 1.5);
-
-        // 3. 計算目標相機位置 (Target Camera Position)
-        // 數學原理：ScreenCenter = WorldCenter * Zoom + CameraOffset
-        // => CameraOffset = ScreenCenter - WorldCenter * Zoom
-        const targetCamX = (canvas.width / 2) - (centerX * clampedZoom);
-        const targetCamY = (canvas.height / 2) - (centerY * clampedZoom);
-
-        // 4. 平滑移動 (Lerp)
-        // 0.05 是平滑係數，越小越慢越滑
-        camera.zoom += (clampedZoom - camera.zoom) * 0.05;
-        camera.x += (targetCamX - camera.x) * 0.05;
-        camera.y += (targetCamY - camera.y) * 0.05;
-
-        // 若正在重命名，需更新輸入框位置
-        if (isRenaming) updateRenameInputPosition();
-    }
-
-    function updatePhysics() {
-        if (simulationAlpha < 0.01) return;
-        simulationAlpha *= 0.99; 
-
-        const REPULSION = 8000;
-        // const SPRING_LEN = 150; // ❌ 移除這個固定常數
-        const SPRING_STRENGTH = 0.05; 
-        
-        nodes.forEach(node => { node.fx = 0; node.fy = 0; node.degree = 0; });
-        edges.forEach(edge => { edge.from.degree++; edge.to.degree++; });
-
-        // 1. 排斥力 (保持不變)
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                let dx = nodes[i].x - nodes[j].x;
-                let dy = nodes[i].y - nodes[j].y;
-                let distSq = dx * dx + dy * dy;
-                
-                if (distSq === 0) { dx = 1; distSq = 1; } 
-                let dist = Math.sqrt(distSq);
-
-                let force = (REPULSION / distSq) * simulationAlpha;
-                if (nodes[i].degree === 0 || nodes[j].degree === 0) force *= 0.6;
-
-                let fx = (dx / dist) * force;
-                let fy = (dy / dist) * force;
-
-                nodes[i].fx += fx; nodes[i].fy += fy;
-                nodes[j].fx -= fx; nodes[j].fy -= fy;
-            }
-        }
-
-        // ✅ 2. 彈力 (關鍵修改：動態長度)
-        edges.forEach(edge => {
-            let u = edge.from;
-            let v = edge.to;
-            let dx = v.x - u.x;
-            let dy = v.y - u.y;
-            let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-            
-            // ✅ 新邏輯：理想距離 = 兩者半徑和 + 箭頭緩衝區 (例如 80px)
-            let dynamicSpringLen = u.radius + v.radius + 80;
-
-            let displacement = dist - dynamicSpringLen;
-            let force = displacement * SPRING_STRENGTH * simulationAlpha;
-            
-            let fx = (dx / dist) * force;
-            let fy = (dy / dist) * force;
-
-            u.fx += fx; u.fy += fy;
-            v.fx -= fx; v.fy -= fy;
-        });
-
-        // 3. 應用力 & 邊界拉回 (保持不變)
-        nodes.forEach(node => {
-            const distToCenter = Math.sqrt(node.x * node.x + node.y * node.y) || 1;
-            let gravityForce = 0;
-
-            if (node.degree === 0) {
-                if (distToCenter > 450) gravityForce = (distToCenter - 450) * 0.005 * simulationAlpha; 
-                else if (distToCenter < 250) gravityForce = -0.05 * simulationAlpha;
-            } else {
-                gravityForce = (0.02 + (node.degree * 0.005)) * simulationAlpha;
-            }
-            
-            node.fx -= (node.x / distToCenter) * gravityForce * 50;
-            node.fy -= (node.y / distToCenter) * gravityForce * 50;
-
-            node.vx = (node.vx + node.fx) * 0.6; 
-            node.vy = (node.vy + node.fy) * 0.6;
-
-            const speed = Math.sqrt(node.vx*node.vx + node.vy*node.vy);
-            const MAX_SPEED = 20 * simulationAlpha; 
-            if (speed > MAX_SPEED) {
-                node.vx = (node.vx / speed) * MAX_SPEED;
-                node.vy = (node.vy / speed) * MAX_SPEED;
-            }
-
-            if (node !== draggingNode) {
-                node.x += node.vx;
-                node.y += node.vy;
-            }
-        });
-
-        // 4. 防重疊
-        resolveCollisions();
-    }
-
     // ✅ 修改 resolveCollisions 函式 (增加間距)
     function resolveCollisions() {
         // ✅ 關鍵修改：將硬性間距從 10 加大到 50
@@ -731,45 +587,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTitleStyle();
         const reader = new FileReader();
         reader.onload = function(e) {
-            try { parseAndDrawJSON(JSON.parse(e.target.result)); } catch (err) { alert("Invalid JSON"); }
             input.value = '';
         };
         reader.readAsText(file);
-    }
-    function parseAndDrawJSON(data) {
-        nodes = []; edges = [];
-        const nodeSet = new Set();
-        Object.keys(data).forEach(k => {
-            nodeSet.add(k); if (Array.isArray(data[k])) data[k].forEach(n => nodeSet.add(n));
-        });
-        const allNodeNames = Array.from(nodeSet).sort();
-        
-        allNodeNames.forEach((name) => {
-            nodes.push({
-                id: name, name: name,
-                x: (Math.random()-0.5)*300, y: (Math.random()-0.5)*300,
-                radius: calculateNodeRadius(name),
-                vx: 0, vy: 0
-            });
-        });
-        const nodeMap = {}; nodes.forEach(n => nodeMap[n.name] = n);
-        const createdConnections = new Set();
-        Object.keys(data).forEach(src => {
-            const sourceNode = nodeMap[src];
-            if (sourceNode && Array.isArray(data[src])) {
-                data[src].forEach(tgt => {
-                    const targetNode = nodeMap[tgt];
-                    if (!targetNode) return;
-                    const reverseExists = data[tgt] && data[tgt].includes(src);
-                    const pairKey = [src, tgt].sort().join('-');
-                    if (createdConnections.has(pairKey)) return;
-                    edges.push({ from: sourceNode, to: targetNode, type: reverseExists ? 'bidirectional' : 'directed' });
-                    if (reverseExists) createdConnections.add(pairKey);
-                });
-            }
-        });
-        camera.x = canvas.width / 2; camera.y = canvas.height / 2; camera.zoom = 1;
-        startAutoLayout();
     }
     function openConfirmModal() { document.getElementById('confirmModal').style.display = 'flex'; }
     function confirmClearCanvas() { nodes = []; edges = []; projectTitle.value = 'Untitled'; updateTitleStyle(); closeModal('confirmModal'); }
