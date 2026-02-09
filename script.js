@@ -12,8 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnDownload').onclick = downloadJSON;
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
+    document.getElementById('btnAutoLayout').onclick = autoLayout;
     document.getElementById('btnClear').onclick = openConfirmModal;
-    
+
     // 綁定視窗按鈕
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
@@ -50,30 +51,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 2. 變數與狀態 ---
-    let nodes = []; 
-    let edges = []; 
-    
+    let nodes = [];
+    let edges = [];
+
     let camera = { x: 0, y: 0, zoom: 1 };
-    
+
     let selectedNode = null;
     let selectedEdge = null;
     let draggingNode = null;
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
-    
+
     let isCreatingEdge = false;
     let dragStartNode = null;
-    let mouseX = 0; 
-    let mouseY = 0; 
+    let mouseX = 0;
+    let mouseY = 0;
 
-    let contextMenuPos = { x: 0, y: 0 }; 
+    let contextMenuPos = { x: 0, y: 0 };
 
     let isRenaming = false;
     let renamingNode = null;
 
     // 常數設定
-    const BASE_RADIUS = 25; 
-    const PADDING_RADIUS = 15; 
+    const BASE_RADIUS = 25;
+    const PADDING_RADIUS = 15;
     const THEME = {
         nodeFill: '#1e1e1e',
         nodeBorder: '#00e5ff',
@@ -123,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 4. 滑鼠與鍵盤事件 ---
 
     canvas.addEventListener('mousedown', e => {
-        if(isRenaming) finishRenaming();
+        if (isRenaming) finishRenaming();
         hideContextMenu();
         if (e.button === 2) return;
 
@@ -140,8 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.button === 0) {
             if (isCreatingEdge && !node) {
-                 cancelEdgeCreation();
-                 return;
+                cancelEdgeCreation();
+                return;
             }
 
             if (e.shiftKey && node) {
@@ -182,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             camera.y += dy;
             panStart = { x: e.clientX, y: e.clientY };
             draw();
-            if(isRenaming) updateRenameInputPosition(); 
+            if (isRenaming) updateRenameInputPosition();
             return;
         }
 
@@ -190,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             draggingNode.x = pos.x;
             draggingNode.y = pos.y;
             draw();
-            if(isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
+            if (isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
         } else if (isCreatingEdge) {
             draw();
         }
@@ -204,12 +205,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const pos = screenToWorld(e.clientX, e.clientY);
-        
+
         if (isCreatingEdge && dragStartNode) {
             const targetNode = getNodeAt(pos.x, pos.y);
             if (targetNode && targetNode !== dragStartNode) {
                 createEdge(dragStartNode, targetNode);
-                if (e.shiftKey) { 
+                if (e.shiftKey) {
                     isCreatingEdge = false;
                     dragStartNode = null;
                 }
@@ -217,13 +218,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 isCreatingEdge = false;
                 dragStartNode = null;
             }
-        } 
-        
+        }
+
         if (selectedEdge && !draggingNode && !isCreatingEdge) {
-             const edgeCheck = getEdgeAt(pos.x, pos.y);
-             if (edgeCheck === selectedEdge) {
-                 selectedEdge.type = selectedEdge.type === 'directed' ? 'bidirectional' : 'directed';
-             }
+            const edgeCheck = getEdgeAt(pos.x, pos.y);
+            if (edgeCheck === selectedEdge) {
+                selectedEdge.type = selectedEdge.type === 'directed' ? 'bidirectional' : 'directed';
+            }
         }
 
         draggingNode = null;
@@ -247,9 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
             camera.zoom = newZoom;
             camera.x = mouseX - worldX * camera.zoom;
             camera.y = mouseY - worldY * camera.zoom;
-            
+
             draw();
-            if(isRenaming) updateRenameInputPosition();
+            if (isRenaming) updateRenameInputPosition();
         }
     }, { passive: false });
 
@@ -296,9 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const pos = screenToWorld(e.clientX, e.clientY);
         const node = getNodeAt(pos.x, pos.y);
-        
-        contextMenuPos = pos; 
-        
+
+        contextMenuPos = pos;
+
         buildContextMenu(node);
         contextMenu.style.display = 'block';
         contextMenu.style.left = e.clientX + 'px';
@@ -306,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('click', (e) => {
-        if(e.target !== renameInput) hideContextMenu();
+        if (e.target !== renameInput) hideContextMenu();
     });
 
     function buildContextMenu(targetNode) {
@@ -328,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.onclick = () => { onClick(); hideContextMenu(); };
         contextMenu.appendChild(div);
     }
-    
+
     function addMenuSeparator() {
         const div = document.createElement('div');
         div.className = 'menu-separator';
@@ -400,11 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function cancelEdgeCreation() {
         isCreatingEdge = false;
         dragStartNode = null;
-        draw(); 
+        draw();
     }
 
     function createEdge(n1, n2) {
-        const existing = edges.find(e => 
+        const existing = edges.find(e =>
             (e.from === n1 && e.to === n2) ||
             (e.from === n2 && e.to === n1)
         );
@@ -443,10 +444,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
             ctx.fillStyle = THEME.nodeFill;
             ctx.fill();
-            ctx.lineWidth = 2 / camera.zoom * camera.zoom; 
+            ctx.lineWidth = 2 / camera.zoom * camera.zoom;
             ctx.strokeStyle = (node === selectedNode) ? THEME.nodeSelected : THEME.nodeBorder;
             ctx.stroke();
-            
+
             ctx.fillStyle = THEME.nodeText;
             ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
@@ -478,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawArrow(fromNode, toNode, bidirectional, isSelected) {
         const headlen = 10;
         const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
-        
+
         const startX = fromNode.x + fromNode.radius * Math.cos(angle);
         const startY = fromNode.y + fromNode.radius * Math.sin(angle);
         const endX = toNode.x - toNode.radius * Math.cos(angle);
@@ -553,10 +554,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        
+
         let filename = projectTitle.value.trim();
-        if(!filename || filename === 'UNTITLED') filename = 'graph_adj_list';
-        
+        if (!filename || filename === 'UNTITLED') filename = 'graph_adj_list';
+
         a.download = `${filename}.json`;
         document.body.appendChild(a);
         a.click();
@@ -566,13 +567,121 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function downloadJSONFromModal() { downloadJSON(); }
 
+    function autoLayout() {
+        if (nodes.length === 0) return;
+
+        // 1. 初始化相機到中心
+        camera.x = canvas.width / 2;
+        camera.y = canvas.height / 2;
+        camera.zoom = 1;
+
+        // 2. 開始物理模擬
+        // 為了讓動畫流暢，我們設定跑 300 幀 (約 5 秒) 後自動停止
+        let iterations = 300;
+
+        function step() {
+            if (iterations > 0) {
+                runForceSimulation();
+                draw();
+                iterations--;
+                requestAnimationFrame(step);
+            }
+        }
+        step();
+    }
+
+    function runForceSimulation() {
+        const area = canvas.width * canvas.height;
+        const k = Math.sqrt(area / nodes.length); // 理想間距
+
+        // 參數設定 (可依喜好微調)
+        const REPULSION = 35000;    // 排斥力強度 (越大分越開)
+        const SPRING_LEN = 120;     // 彈簧理想長度
+        const SPRING_STRENGTH = 0.05; // 彈簧拉力 (0~1)
+        const GRAVITY = 0.05;       // 向心力 (避免飛太遠)
+        const MAX_SPEED = 20;       // 最大移動速度 (避免瞬移)
+
+        // 初始化速度 (如果還沒有)
+        nodes.forEach(node => {
+            if (!node.vx) { node.vx = 0; node.vy = 0; }
+        });
+
+        // 1. 計算排斥力 (所有節點互相排斥)
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = 0; j < nodes.length; j++) {
+                if (i === j) continue;
+
+                let dx = nodes[i].x - nodes[j].x;
+                let dy = nodes[i].y - nodes[j].y;
+                let distSq = dx * dx + dy * dy;
+                let dist = Math.sqrt(distSq) || 0.1; // 避免除以 0
+
+                // Coulomb's Law: F = k / d^2
+                // 這裡簡化計算
+                let force = REPULSION / (distSq + 100);
+
+                let fx = (dx / dist) * force;
+                let fy = (dy / dist) * force;
+
+                nodes[i].vx += fx;
+                nodes[i].vy += fy;
+            }
+        }
+
+        // 2. 計算彈力 (有連線的節點互相吸引)
+        edges.forEach(edge => {
+            let u = edge.from;
+            let v = edge.to;
+
+            let dx = v.x - u.x;
+            let dy = v.y - u.y;
+            let dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
+
+            // Hooke's Law: F = k * (current_len - target_len)
+            let displacement = dist - SPRING_LEN;
+            let force = displacement * SPRING_STRENGTH;
+
+            let fx = (dx / dist) * force;
+            let fy = (dy / dist) * force;
+
+            u.vx += fx;
+            u.vy += fy;
+            v.vx -= fx;
+            v.vy -= fy;
+        });
+
+        // 3. 計算向心力 (拉回中心) & 更新位置
+        nodes.forEach(node => {
+            // 向心力 (Center Gravity)
+            // 注意：這裡的 (0,0) 是世界座標的中心
+            let distToCenter = Math.sqrt(node.x * node.x + node.y * node.y);
+            node.vx -= (node.x / distToCenter) * GRAVITY * 2;
+            node.vy -= (node.y / distToCenter) * GRAVITY * 2;
+
+            // 限制最大速度 (Damping)
+            let vel = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
+            if (vel > MAX_SPEED) {
+                node.vx = (node.vx / vel) * MAX_SPEED;
+                node.vy = (node.vy / vel) * MAX_SPEED;
+            }
+
+            // 更新位置
+            node.x += node.vx;
+            node.y += node.vy;
+
+            // 摩擦力 (讓它慢慢停下來)
+            node.vx *= 0.85;
+            node.vy *= 0.85;
+        });
+    }
+
     function buildJSONObj() {
         let adjList = {};
-        [...nodes].sort((a,b)=>a.name.localeCompare(b.name)).forEach(node => {
+        [...nodes].sort((a, b) => a.name.localeCompare(b.name)).forEach(node => {
             let neighbors = [];
             edges.forEach(edge => {
-                if(edge.from === node) neighbors.push(edge.to.name);
-                else if(edge.to === node && edge.type === 'bidirectional') neighbors.push(edge.from.name);
+                if (edge.from === node) neighbors.push(edge.to.name);
+                else if (edge.to === node && edge.type === 'bidirectional') neighbors.push(edge.from.name);
             });
             adjList[node.name] = [...new Set(neighbors)].sort();
         });
@@ -582,13 +691,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
-        
+
         const fileNameWithoutExt = file.name.replace(/\.json$/i, "");
         projectTitle.value = fileNameWithoutExt;
         updateTitleStyle();
 
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             try {
                 parseAndDrawJSON(JSON.parse(e.target.result));
             } catch (err) { alert("Invalid JSON"); }
@@ -605,18 +714,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Array.isArray(data[k])) data[k].forEach(n => nodeSet.add(n));
         });
         const allNodeNames = Array.from(nodeSet).sort();
-        
-        camera = { x: canvas.width/2, y: canvas.height/2, zoom: 1 };
-        
+
+        camera = { x: canvas.width / 2, y: canvas.height / 2, zoom: 1 };
+
         const layoutRadius = Math.min(canvas.width, canvas.height) * 0.3;
         const angleStep = (Math.PI * 2) / allNodeNames.length;
 
-        allNodeNames.forEach((name, index) => {
-            const angle = index * angleStep;
+        allNodeNames.forEach((name) => {
             nodes.push({
                 id: name, name: name,
-                x: layoutRadius * Math.cos(angle),
-                y: layoutRadius * Math.sin(angle),
+                x: (Math.random() - 0.5) * 200, 
+                y: (Math.random() - 0.5) * 200,
                 radius: calculateNodeRadius(name)
             });
         });
@@ -639,7 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        draw();
+        // draw();
+        autoLayout();
     }
 
     function openConfirmModal() {
