@@ -7,19 +7,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const renameInput = document.getElementById('renameInput');
     const projectTitle = document.getElementById('projectTitle');
 
-    // 按鈕綁定
+    // 按鈕監聽
     document.getElementById('btnPreview').onclick = generateJSON;
     document.getElementById('btnDownload').onclick = downloadJSON;
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
-    document.getElementById('btnAutoLayout').onclick = startAutoLayout;
     document.getElementById('btnClear').onclick = openConfirmModal;
     
+    // 視窗關閉按鈕
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
 
-    // 標題邏輯
+    // 標題樣式邏輯
     function updateTitleStyle() {
         if (projectTitle.value.trim() === 'Untitled' || projectTitle.value.trim() === '') {
             projectTitle.classList.add('is-default');
@@ -37,11 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let nodes = []; 
     let edges = []; 
     
-    // 相機狀態
+    // 相機 (視角)
     let camera = { x: 0, y: 0, zoom: 1 };
-    
-    // ✅ 新增：自動運鏡狀態
-    let isAutoFitting = false; // 是否正在自動調整視角
     
     // 互動狀態
     let selectedNode = null;
@@ -60,10 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRenaming = false;
     let renamingNode = null;
 
-    // 物理模擬狀態
-    let simulationAlpha = 0; 
-
-    // 常數設定
+    // 常數
     const BASE_RADIUS = 25; 
     const PADDING_RADIUS = 15; 
     const THEME = {
@@ -77,12 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
         grid: 'rgba(0, 229, 255, 0.1)'
     };
 
-    // --- 3. 渲染循環 ---
+    // --- 3. 渲染循環 (Render Loop) ---
+    // 即使沒有物理，為了拖曳的順暢感，我們還是使用動畫循環來重繪
     function animate() {
-        draw();
+        draw();          
+        requestAnimationFrame(animate);
     }
-    requestAnimationFrame(animate);
+    requestAnimationFrame(animate); // 啟動循環
 
+    // 視窗大小調整
     function resize() {
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
@@ -116,11 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(BASE_RADIUS, (metrics.width / 2) + PADDING_RADIUS);
     }
 
-    // --- 5. 互動事件監聽 ---
+    // --- 5. 互動事件監聽 (滑鼠/鍵盤) ---
 
     canvas.addEventListener('mousedown', e => {
-        isAutoFitting = false; // ✅ 使用者介入時，停止自動運鏡
-
         if(isRenaming) finishRenaming();
         hideContextMenu();
         
@@ -130,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const node = getNodeAt(pos.x, pos.y);
         const edge = getEdgeAt(pos.x, pos.y);
 
+        // 中鍵 或 空白處+左鍵 = 平移
         if (e.button === 1 || (e.button === 0 && !node && !edge && !e.shiftKey)) {
             isPanning = true;
             panStart = { x: e.clientX, y: e.clientY };
@@ -137,32 +133,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 左鍵操作
         if (e.button === 0) { 
+            // 如果在連線模式下點擊空白處，取消連線
             if (isCreatingEdge && !node) {
                  cancelEdgeCreation();
                  return;
             }
 
             if (e.shiftKey && node) {
+                // Shift+拖曳 = 建立連線
                 isCreatingEdge = true;
                 dragStartNode = node;
                 selectedNode = null;
                 selectedEdge = null;
             } else if (node) {
                 if (isCreatingEdge && dragStartNode && node !== dragStartNode) {
+                    // 完成連線
                     createEdge(dragStartNode, node);
                     isCreatingEdge = false;
                     dragStartNode = null;
                 } else {
+                    // 開始拖曳節點
                     draggingNode = node;
                     selectedNode = node;
                     selectedEdge = null;
-                    if(simulationAlpha < 0.2) simulationAlpha = 0.2;
                 }
             } else if (edge) {
+                // 選取連線
                 selectedEdge = edge;
                 selectedNode = null;
             } else {
+                // 取消選取
                 selectedNode = null;
                 selectedEdge = null;
             }
@@ -175,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mouseY = pos.y;
 
         if (isPanning) {
-            isAutoFitting = false; // ✅ 停止自動運鏡
             const dx = e.clientX - panStart.x;
             const dy = e.clientY - panStart.y;
             camera.x += dx;
@@ -186,11 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingNode) {
-            isAutoFitting = false; // ✅ 停止自動運鏡
+            // 手動拖曳更新位置
             draggingNode.x = pos.x;
             draggingNode.y = pos.y;
-            draggingNode.vx = 0;
-            draggingNode.vy = 0;
             if(isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
         }
     });
@@ -204,17 +203,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pos = screenToWorld(e.clientX, e.clientY);
         
+        // 處理連線建立
         if (isCreatingEdge && dragStartNode) {
             const targetNode = getNodeAt(pos.x, pos.y);
             if (targetNode && targetNode !== dragStartNode) {
                 createEdge(dragStartNode, targetNode);
                 if (e.shiftKey) { isCreatingEdge = false; dragStartNode = null; }
             } else if (e.shiftKey) {
+                // Shift 放開如果沒選到東西，取消
                 isCreatingEdge = false;
                 dragStartNode = null;
             }
         } 
         
+        // 點擊連線切換方向
         if (selectedEdge && !draggingNode && !isCreatingEdge) {
              const edgeCheck = getEdgeAt(pos.x, pos.y);
              if (edgeCheck === selectedEdge) {
@@ -225,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('wheel', e => {
-        isAutoFitting = false; // ✅ 使用者滾輪縮放時，停止自動運鏡
         e.preventDefault();
         const zoomIntensity = 0.1;
         const delta = e.deltaY < 0 ? 1 : -1;
@@ -263,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isCreatingEdge) { cancelEdgeCreation(); return; }
             if (selectedNode || selectedEdge) { selectedNode = null; selectedEdge = null; return; }
         }
-        if (e.key === 'Delete') {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
             if (selectedNode) deleteNode(selectedNode);
             else if (selectedEdge) { edges = edges.filter(e => e !== selectedEdge); selectedEdge = null; }
         }
@@ -344,13 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function spawnNode() {
         const name = "State" + (nodes.length + 1);
         const r = calculateNodeRadius(name);
+        // 新增節點時，直接放在滑鼠(右鍵)位置
         const newNode = { 
             id: Date.now(), 
             x: contextMenuPos.x, 
             y: contextMenuPos.y, 
             name, 
-            radius: r,
-            vx: 0, vy: 0 
+            radius: r
         };
         nodes.push(newNode);
         setTimeout(() => startRenaming(newNode), 50);
@@ -369,68 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!existing) edges.push({ from: n1, to: n2, type: 'directed' });
     }
 
-    // --- 8. 物理引擎與自動運鏡 (核心修改) ---
-    function startAutoLayout() {
-        if (nodes.length === 0) return;
-        simulationAlpha = 1.0; 
-        isAutoFitting = true; // ✅ 開啟自動運鏡
-    }
-
-    // ✅ 修改 resolveCollisions 函式 (增加間距)
-    function resolveCollisions() {
-        // ✅ 關鍵修改：將硬性間距從 10 加大到 50
-        // 這確保即使物理引擎還沒算完，節點也不會靠得太近
-        const PADDING = 50; 
-
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                let n1 = nodes[i];
-                let n2 = nodes[j];
-                let dx = n1.x - n2.x;
-                let dy = n1.y - n2.y;
-                let distSq = dx * dx + dy * dy;
-                let dist = Math.sqrt(distSq);
-                let minDist = n1.radius + n2.radius + PADDING;
-
-                if (dist < minDist) {
-                    if (dist === 0) { dx = 1; dy = 0; dist = 1; }
-                    let overlap = minDist - dist;
-                    let moveX = (dx / dist) * (overlap * 0.5);
-                    let moveY = (dy / dist) * (overlap * 0.5);
-
-                    if (n1 !== draggingNode) { n1.x += moveX; n1.y += moveY; }
-                    if (n2 !== draggingNode) { n2.x -= moveX; n2.y -= moveY; }
-                }
-            }
-        }
-    }
-
-    function resolveCollisions() {
-        const PADDING = 10; 
-        for (let i = 0; i < nodes.length; i++) {
-            for (let j = i + 1; j < nodes.length; j++) {
-                let n1 = nodes[i];
-                let n2 = nodes[j];
-                let dx = n1.x - n2.x;
-                let dy = n1.y - n2.y;
-                let distSq = dx * dx + dy * dy;
-                let dist = Math.sqrt(distSq);
-                let minDist = n1.radius + n2.radius + PADDING;
-
-                if (dist < minDist) {
-                    if (dist === 0) { dx = 1; dy = 0; dist = 1; }
-                    let overlap = minDist - dist;
-                    let moveX = (dx / dist) * (overlap * 0.5);
-                    let moveY = (dy / dist) * (overlap * 0.5);
-
-                    if (n1 !== draggingNode) { n1.x += moveX; n1.y += moveY; }
-                    if (n2 !== draggingNode) { n2.x -= moveX; n2.y -= moveY; }
-                }
-            }
-        }
-    }
-
-    // --- 9. 繪圖 ---
+    // --- 8. 繪圖引擎 ---
     function draw() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -438,6 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x, camera.y);
 
+        // 畫連線
         edges.forEach(edge => {
             const isSelected = (edge === selectedEdge);
             ctx.strokeStyle = isSelected ? THEME.edgeSelected : THEME.edge;
@@ -445,6 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
             drawArrow(edge.from, edge.to, edge.type === 'bidirectional', isSelected);
         });
 
+        // 畫建立連線的虛線
         if (isCreatingEdge && dragStartNode) {
             ctx.strokeStyle = '#aaa';
             ctx.setLineDash([5, 5]);
@@ -455,6 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.setLineDash([]);
         }
 
+        // 畫節點
         nodes.forEach(node => {
             ctx.beginPath();
             ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
@@ -522,8 +465,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 10. 碰撞檢測 ---
+    // --- 9. 碰撞檢測 (點擊判定) ---
     function getNodeAt(x, y) {
+        // 反向遍歷，確保先選到上層的節點
         for (let i = nodes.length - 1; i >= 0; i--) {
             const n = nodes[i];
             if (Math.hypot(n.x - x, n.y - y) < n.radius) return n;
@@ -547,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // --- 11. JSON & Utils ---
+    // --- 10. JSON 匯入匯出 ---
     function generateJSON() {
         document.getElementById('codeOutput').value = JSON.stringify(buildJSONObj(), null, 2);
         document.getElementById('codeModal').style.display = 'flex';
@@ -567,6 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
     function downloadJSONFromModal() { downloadJSON(); }
+    
     function buildJSONObj() {
         let adjList = {};
         [...nodes].sort((a,b)=>a.name.localeCompare(b.name)).forEach(node => {
@@ -579,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return adjList;
     }
+
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
@@ -587,10 +533,50 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTitleStyle();
         const reader = new FileReader();
         reader.onload = function(e) {
+            try { parseAndDrawJSON(JSON.parse(e.target.result)); } catch (err) { alert("JSON 格式錯誤"); }
             input.value = '';
         };
         reader.readAsText(file);
     }
+
+    function parseAndDrawJSON(data) {
+        nodes = []; edges = [];
+        const nodeSet = new Set();
+        Object.keys(data).forEach(k => {
+            nodeSet.add(k); if (Array.isArray(data[k])) data[k].forEach(n => nodeSet.add(n));
+        });
+        const allNodeNames = Array.from(nodeSet).sort();
+        
+        // 載入時隨機分佈
+        allNodeNames.forEach((name) => {
+            nodes.push({
+                id: name, name: name,
+                x: (Math.random()-0.5)*300, y: (Math.random()-0.5)*300,
+                radius: calculateNodeRadius(name)
+            });
+        });
+        const nodeMap = {}; nodes.forEach(n => nodeMap[n.name] = n);
+        const createdConnections = new Set();
+        Object.keys(data).forEach(src => {
+            const sourceNode = nodeMap[src];
+            if (sourceNode && Array.isArray(data[src])) {
+                data[src].forEach(tgt => {
+                    const targetNode = nodeMap[tgt];
+                    if (!targetNode) return;
+                    const reverseExists = data[tgt] && data[tgt].includes(src);
+                    const pairKey = [src, tgt].sort().join('-');
+                    if (createdConnections.has(pairKey)) return;
+                    edges.push({ from: sourceNode, to: targetNode, type: reverseExists ? 'bidirectional' : 'directed' });
+                    if (reverseExists) createdConnections.add(pairKey);
+                });
+            }
+        });
+        // 載入後重置相機
+        camera.x = canvas.width / 2; camera.y = canvas.height / 2; camera.zoom = 1;
+        draw();
+    }
+
+    // --- 11. Modal 視窗 ---
     function openConfirmModal() { document.getElementById('confirmModal').style.display = 'flex'; }
     function confirmClearCanvas() { nodes = []; edges = []; projectTitle.value = 'Untitled'; updateTitleStyle(); closeModal('confirmModal'); }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }

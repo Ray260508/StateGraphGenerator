@@ -35,43 +35,36 @@ header {
 .logo-container img { height: 50px; width: auto; }
 h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent-color); text-shadow: 0 0 5px rgba(0, 229, 255, 0.5); }
 
-.main-container { display: flex; flex: 1; position: relative; }
-
 #projectTitle {
     background: transparent !important;
     background-color: transparent !important;
     border: none !important;
-    border-radius: 0 !important;
     outline: none !important;
     box-shadow: none !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-
     font-family: inherit;
     font-size: 1.5rem;
     font-weight: bold;
-    text-transform: none;
+    text-transform: none; /* 允許大小寫 */
     letter-spacing: 1px;
     color: var(--accent-color);
     text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
-    
     padding: 5px 10px;
     width: 300px;
     transition: all 0.3s ease;
     border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
 }
-
 #projectTitle:hover, #projectTitle:focus {
     border-bottom: 2px solid rgba(0, 229, 255, 0.3) !important;
     background-color: rgba(255, 255, 255, 0.05) !important;
 }
-
-/* Untitled style */
 #projectTitle.is-default {
     color: rgba(0, 229, 255, 0.5) !important;
     text-shadow: none !important;
     font-style: italic;
 }
+
+.main-container { display: flex; flex: 1; position: relative; }
 
 /* Sidebar */
 .controls { 
