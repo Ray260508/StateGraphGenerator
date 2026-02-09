@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 相機狀態
     let camera = { x: 0, y: 0, zoom: 1 };
     
+    // ✅ 新增：自動運鏡狀態
+    let isAutoFitting = false; // 是否正在自動調整視角
+    
     // 互動狀態
     let selectedNode = null;
     let selectedEdge = null;
@@ -77,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 3. 渲染循環 ---
     function animate() {
         updatePhysics(); 
+        updateAutoFit(); // ✅ 每幀計算自動運鏡
         draw();          
         requestAnimationFrame(animate);
     }
@@ -118,6 +122,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. 互動事件監聽 ---
 
     canvas.addEventListener('mousedown', e => {
+        isAutoFitting = false; // ✅ 使用者介入時，停止自動運鏡
+
         if(isRenaming) finishRenaming();
         hideContextMenu();
         
@@ -172,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mouseY = pos.y;
 
         if (isPanning) {
+            isAutoFitting = false; // ✅ 停止自動運鏡
             const dx = e.clientX - panStart.x;
             const dy = e.clientY - panStart.y;
             camera.x += dx;
@@ -182,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (draggingNode) {
+            isAutoFitting = false; // ✅ 停止自動運鏡
             draggingNode.x = pos.x;
             draggingNode.y = pos.y;
             draggingNode.vx = 0;
@@ -220,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('wheel', e => {
+        isAutoFitting = false; // ✅ 使用者滾輪縮放時，停止自動運鏡
         e.preventDefault();
         const zoomIntensity = 0.1;
         const delta = e.deltaY < 0 ? 1 : -1;
@@ -363,31 +372,78 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!existing) edges.push({ from: n1, to: n2, type: 'directed' });
     }
 
-    // --- 8. 物理引擎 (核心：防重疊 + 孤立點邊界) ---
+    // --- 8. 物理引擎與自動運鏡 (核心修改) ---
     function startAutoLayout() {
         if (nodes.length === 0) return;
         simulationAlpha = 1.0; 
+        isAutoFitting = true; // ✅ 開啟自動運鏡
+    }
+
+    // ✅ 新增：自動運鏡邏輯
+    function updateAutoFit() {
+        // 只有在物理模擬進行中，且開啟自動運鏡時執行
+        if (!isAutoFitting || nodes.length === 0) return;
+
+        // 如果物理模擬快停止了，自動運鏡也慢慢停止
+        if (simulationAlpha < 0.05) {
+            isAutoFitting = false;
+            return;
+        }
+
+        // 1. 計算邊界 (Bounding Box)
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        nodes.forEach(node => {
+            if (node.x < minX) minX = node.x;
+            if (node.x > maxX) maxX = node.x;
+            if (node.y < minY) minY = node.y;
+            if (node.y > maxY) maxY = node.y;
+        });
+
+        // 增加一點邊界半徑，確保節點圓圈也包在裡面
+        const padding = 100; // 邊距
+        const width = maxX - minX + padding * 2;
+        const height = maxY - minY + padding * 2;
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+
+        // 2. 計算目標縮放比例 (Target Zoom)
+        // 確保寬高都塞得進去
+        const targetZoom = Math.min(
+            canvas.width / width, 
+            canvas.height / height
+        );
+
+        // 限制最大縮放，避免只有一個點時放超大
+        const clampedZoom = Math.min(targetZoom, 1.5);
+
+        // 3. 計算目標相機位置 (Target Camera Position)
+        // 數學原理：ScreenCenter = WorldCenter * Zoom + CameraOffset
+        // => CameraOffset = ScreenCenter - WorldCenter * Zoom
+        const targetCamX = (canvas.width / 2) - (centerX * clampedZoom);
+        const targetCamY = (canvas.height / 2) - (centerY * clampedZoom);
+
+        // 4. 平滑移動 (Lerp)
+        // 0.05 是平滑係數，越小越慢越滑
+        camera.zoom += (clampedZoom - camera.zoom) * 0.05;
+        camera.x += (targetCamX - camera.x) * 0.05;
+        camera.y += (targetCamY - camera.y) * 0.05;
+
+        // 若正在重命名，需更新輸入框位置
+        if (isRenaming) updateRenameInputPosition();
     }
 
     function updatePhysics() {
         if (simulationAlpha < 0.01) return;
         simulationAlpha *= 0.99; 
 
-        // 參數
         const REPULSION = 8000;
-        const SPRING_LEN = 150;
+        // const SPRING_LEN = 150; // ❌ 移除這個固定常數
         const SPRING_STRENGTH = 0.05; 
         
-        nodes.forEach(node => { 
-            node.fx = 0; node.fy = 0; node.degree = 0; 
-        });
+        nodes.forEach(node => { node.fx = 0; node.fy = 0; node.degree = 0; });
+        edges.forEach(edge => { edge.from.degree++; edge.to.degree++; });
 
-        edges.forEach(edge => {
-            edge.from.degree++;
-            edge.to.degree++;
-        });
-
-        // 1. 排斥力
+        // 1. 排斥力 (保持不變)
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 let dx = nodes[i].x - nodes[j].x;
@@ -398,11 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let dist = Math.sqrt(distSq);
 
                 let force = (REPULSION / distSq) * simulationAlpha;
-
-                // 孤立節點稍微減少來自中心的排斥，避免飛太快
-                if (nodes[i].degree === 0 || nodes[j].degree === 0) {
-                     force *= 0.6;
-                }
+                if (nodes[i].degree === 0 || nodes[j].degree === 0) force *= 0.6;
 
                 let fx = (dx / dist) * force;
                 let fy = (dy / dist) * force;
@@ -412,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2. 彈力
+        // ✅ 2. 彈力 (關鍵修改：動態長度)
         edges.forEach(edge => {
             let u = edge.from;
             let v = edge.to;
@@ -420,7 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let dy = v.y - u.y;
             let dist = Math.sqrt(dx*dx + dy*dy) || 1;
             
-            let displacement = dist - SPRING_LEN;
+            // ✅ 新邏輯：理想距離 = 兩者半徑和 + 箭頭緩衝區 (例如 80px)
+            let dynamicSpringLen = u.radius + v.radius + 80;
+
+            let displacement = dist - dynamicSpringLen;
             let force = displacement * SPRING_STRENGTH * simulationAlpha;
             
             let fx = (dx / dist) * force;
@@ -430,33 +485,24 @@ document.addEventListener('DOMContentLoaded', () => {
             v.fx -= fx; v.fy -= fy;
         });
 
-        // 3. 應用力 & 邊界拉回
+        // 3. 應用力 & 邊界拉回 (保持不變)
         nodes.forEach(node => {
             const distToCenter = Math.sqrt(node.x * node.x + node.y * node.y) || 1;
             let gravityForce = 0;
 
             if (node.degree === 0) {
-                // ✅ 孤立點邏輯：
-                // 如果距離中心 > 450，強力拉回 (像是有一條隱形的狗鍊)
-                if (distToCenter > 450) {
-                    gravityForce = (distToCenter - 450) * 0.005 * simulationAlpha; 
-                } else if (distToCenter < 250) {
-                    // 如果太近，推出去
-                    gravityForce = -0.05 * simulationAlpha;
-                }
+                if (distToCenter > 450) gravityForce = (distToCenter - 450) * 0.005 * simulationAlpha; 
+                else if (distToCenter < 250) gravityForce = -0.05 * simulationAlpha;
             } else {
-                // 一般節點：根據連線數決定向心力
                 gravityForce = (0.02 + (node.degree * 0.005)) * simulationAlpha;
             }
             
             node.fx -= (node.x / distToCenter) * gravityForce * 50;
             node.fy -= (node.y / distToCenter) * gravityForce * 50;
 
-            // 更新速度
             node.vx = (node.vx + node.fx) * 0.6; 
             node.vy = (node.vy + node.fy) * 0.6;
 
-            // 限制最大速度
             const speed = Math.sqrt(node.vx*node.vx + node.vy*node.vy);
             const MAX_SPEED = 20 * simulationAlpha; 
             if (speed > MAX_SPEED) {
@@ -470,46 +516,59 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // ✅ 4. 防重疊機制 (Collision Resolution)
-        // 在所有力計算完、位置更新後，執行「強制分開」
+        // 4. 防重疊
         resolveCollisions();
     }
 
+    // ✅ 修改 resolveCollisions 函式 (增加間距)
     function resolveCollisions() {
-        const PADDING = 30; // 節點之間的最小間距
+        // ✅ 關鍵修改：將硬性間距從 10 加大到 50
+        // 這確保即使物理引擎還沒算完，節點也不會靠得太近
+        const PADDING = 50; 
 
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 let n1 = nodes[i];
                 let n2 = nodes[j];
-
                 let dx = n1.x - n2.x;
                 let dy = n1.y - n2.y;
                 let distSq = dx * dx + dy * dy;
                 let dist = Math.sqrt(distSq);
-
-                // 最小允許距離 = 兩者半徑和 + 間距
                 let minDist = n1.radius + n2.radius + PADDING;
 
                 if (dist < minDist) {
-                    // 發生重疊！
-                    if (dist === 0) { dx = 1; dy = 0; dist = 1; } // 防止完全重疊
-
-                    // 計算需要推開的距離 (Overlap Amount)
+                    if (dist === 0) { dx = 1; dy = 0; dist = 1; }
                     let overlap = minDist - dist;
-                    
-                    // 每個節點各移動一半
                     let moveX = (dx / dist) * (overlap * 0.5);
                     let moveY = (dy / dist) * (overlap * 0.5);
 
-                    if (n1 !== draggingNode) {
-                        n1.x += moveX;
-                        n1.y += moveY;
-                    }
-                    if (n2 !== draggingNode) {
-                        n2.x -= moveX;
-                        n2.y -= moveY;
-                    }
+                    if (n1 !== draggingNode) { n1.x += moveX; n1.y += moveY; }
+                    if (n2 !== draggingNode) { n2.x -= moveX; n2.y -= moveY; }
+                }
+            }
+        }
+    }
+
+    function resolveCollisions() {
+        const PADDING = 10; 
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                let n1 = nodes[i];
+                let n2 = nodes[j];
+                let dx = n1.x - n2.x;
+                let dy = n1.y - n2.y;
+                let distSq = dx * dx + dy * dy;
+                let dist = Math.sqrt(distSq);
+                let minDist = n1.radius + n2.radius + PADDING;
+
+                if (dist < minDist) {
+                    if (dist === 0) { dx = 1; dy = 0; dist = 1; }
+                    let overlap = minDist - dist;
+                    let moveX = (dx / dist) * (overlap * 0.5);
+                    let moveY = (dy / dist) * (overlap * 0.5);
+
+                    if (n1 !== draggingNode) { n1.x += moveX; n1.y += moveY; }
+                    if (n2 !== draggingNode) { n2.x -= moveX; n2.y -= moveY; }
                 }
             }
         }
