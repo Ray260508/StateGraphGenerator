@@ -38,25 +38,27 @@ h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 1p
 .main-container { display: flex; flex: 1; position: relative; }
 
 #projectTitle {
-    background-color: transparent !important; /* 強制透明背景 */
-    border: none !important; /* 強制移除邊框 */
-    outline: none !important; /* 移除點擊時的聚焦外框 */
-    box-shadow: none !important; /* 移除任何可能的陰影 */
-    
-    font-family: inherit; /* 繼承整體的字體設定 */
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+
+    font-family: inherit;
     font-size: 1.5rem;
     font-weight: bold;
-    text-transform: uppercase;
+    text-transform: none;
     letter-spacing: 1px;
     color: var(--accent-color);
     text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
     
-    padding: 5px 10px; /* 稍微增加一點內距 */
+    padding: 5px 10px;
     width: 300px;
     transition: all 0.3s ease;
-    border-bottom: 2px solid transparent !important; /* 預設底線透明 */
-    border-radius: 0; /* 移除圓角 */
-    -webkit-appearance: none; /* 移除特定瀏覽器的原生樣式 */
+    border-bottom: 2px solid transparent !important;
 }
 
 #projectTitle:hover, #projectTitle:focus {
@@ -64,9 +66,10 @@ h1 { margin: 0; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 1p
     background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Untitled style */
 #projectTitle.is-default {
-    color: rgba(0, 229, 255, 0.5);
-    text-shadow: none;
+    color: rgba(0, 229, 255, 0.5) !important;
+    text-shadow: none !important;
     font-style: italic;
 }
 

@@ -554,7 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const a = document.createElement('a');
         a.href = url;
         
-        // 取得標題作為檔名，如果是 Untitled 或空白，則使用預設值
         let filename = projectTitle.value.trim();
         if(!filename || filename === 'Untitled') filename = 'graph_adj_list';
         
@@ -584,7 +583,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = input.files[0];
         if (!file) return;
         
-        // 自動將標題設定為匯入檔案的名稱 (移除 .json 副檔名)
         const fileNameWithoutExt = file.name.replace(/\.json$/i, "");
         projectTitle.value = fileNameWithoutExt;
         updateTitleStyle();
@@ -644,7 +642,6 @@ document.addEventListener('DOMContentLoaded', () => {
         draw();
     }
 
-    // --- 11. 視窗控制函數 ---
     function openConfirmModal() {
         document.getElementById('confirmModal').style.display = 'flex';
     }
@@ -653,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nodes = [];
         edges = [];
         draw();
-        // 清空時標題也重置回 Untitled
+        // display Untitled when it's cleared
         projectTitle.value = 'Untitled';
         updateTitleStyle();
         closeModal('confirmModal');
