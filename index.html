@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,74 +8,79 @@
     <link rel="icon" type="image/png" href="frc7130logo.png">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<header>
-    <div class="logo-container">
-        <img src="./frc7130logo.png" alt="FRC 7130 Logo" onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'">
-        <h1 id="logo-text" style="display:none;">FRC 7130</h1> 
-        
-        <input type="text" id="projectTitle" value="Untitled" autocomplete="off" spellcheck="false">
-    </div>
-</header>
+    <header>
+        <div class="logo-container">
+            <img src="./frc7130logo.png" alt="FRC 7130 Logo"
+                onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'">
+            <h1 id="logo-text" style="display:none;">FRC 7130</h1>
 
-<div class="main-container">
-    <div class="controls">
-        <div class="instructions">
-            <strong>操作說明 (手動模式)：</strong>
-            <ul>
-                <li><strong>拖曳空白處</strong>：移動視角 (Pan)</li>
-                <li><strong>滾輪</strong>：縮放視角 (Zoom)</li>
-                <li><strong>拖曳節點</strong>：移動位置</li>
-                <li><strong>Shift + 拖曳</strong>：建立連線</li>
-                <li><strong>右鍵</strong>：新增節點 / 編輯選單</li>
-                <li><strong>雙擊節點</strong>：重新命名</li>
-                <li><strong>點擊連線</strong>：切換 單向/雙向</li>
-                <li><strong>Del / Backspace</strong>：刪除</li>
-            </ul>
+            <input type="text" id="projectTitle" value="Untitled" autocomplete="off" spellcheck="false">
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="controls">
+            <div class="instructions">
+                <strong>操作說明 (手動模式)：</strong>
+                <ul>
+                    <li><strong>拖曳空白處</strong>：移動視角 (Pan)</li>
+                    <li><strong>滾輪</strong>：縮放視角 (Zoom)</li>
+                    <li><strong>拖曳節點</strong>：移動位置</li>
+                    <li><strong>Shift + 拖曳</strong>：建立連線</li>
+                    <li><strong>右鍵</strong>：新增節點 / 編輯選單</li>
+                    <li><strong>雙擊節點</strong>：重新命名</li>
+                    <li><strong>點擊連線</strong>：切換 單向/雙向</li>
+                    <li><strong>Del / Backspace</strong>：刪除</li>
+                </ul>
+            </div>
+
+            <button class="btn-gen" id="btnPreview">預覽 JSON</button>
+            <button class="btn-dl" id="btnDownload">下載 JSON (純結構)</button>
+            <button class="btn-dl" id="btnExportLayout" style="border-color: #f1c40f; color: #f1c40f;">匯出 Layout
+                (含位置)</button>
+
+            <div class="separator"></div>
+
+            <label for="fileInput" class="file-upload-label btn-import">匯入 JSON 檔案</label>
+            <input type="file" id="fileInput" accept=".json">
+
+            <button class="btn-clear" id="btnClear">清空畫布</button>
         </div>
 
-        <button class="btn-gen" id="btnPreview">預覽 JSON</button>
-        <button class="btn-dl" id="btnDownload">下載 JSON 檔案</button>
-        
-        <div class="separator"></div>
-
-        <label for="fileInput" class="file-upload-label btn-import">匯入 JSON 檔案</label>
-        <input type="file" id="fileInput" accept=".json">
-
-        <button class="btn-clear" id="btnClear">清空畫布</button>
-    </div>
-
-    <div class="canvas-wrapper" id="canvasContainer">
-        <canvas id="graphCanvas"></canvas>
-        <input type="text" id="renameInput">
-    </div>
-</div>
-
-<div id="contextMenu"></div>
-
-<div class="modal-overlay" id="codeModal">
-    <div class="modal-box">
-        <h3>Generated JSON</h3>
-        <textarea id="codeOutput" readonly></textarea>
-        <div class="modal-buttons">
-            <button class="btn-dl" id="btnModalDownload">下載檔案</button>
-            <button class="btn-close" id="btnCloseCodeModal">關閉</button>
+        <div class="canvas-wrapper" id="canvasContainer">
+            <canvas id="graphCanvas"></canvas>
+            <input type="text" id="renameInput">
         </div>
     </div>
-</div>
 
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal-box small-box">
-        <h3>確認清空</h3>
-        <p>您確定要刪除所有節點與連線嗎？<br>此動作無法復原。</p>
-        <div class="modal-buttons center-buttons">
-            <button class="btn-close" id="btnCancelClear">取消</button>
-            <button class="btn-danger" id="btnConfirmClear">確認清空</button>
+    <div id="contextMenu"></div>
+
+    <div class="modal-overlay" id="codeModal">
+        <div class="modal-box">
+            <h3>Generated JSON</h3>
+            <textarea id="codeOutput" readonly></textarea>
+            <div class="modal-buttons">
+                <button class="btn-dl" id="btnModalDownload">下載檔案</button>
+                <button class="btn-close" id="btnCloseCodeModal">關閉</button>
+            </div>
         </div>
     </div>
-</div>
 
-<script src="script.js"></script>
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box small-box">
+            <h3>確認清空</h3>
+            <p>您確定要刪除所有節點與連線嗎？<br>此動作無法復原。</p>
+            <div class="modal-buttons center-buttons">
+                <button class="btn-close" id="btnCancelClear">取消</button>
+                <button class="btn-danger" id="btnConfirmClear">確認清空</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
+
 </html>

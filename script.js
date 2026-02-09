@@ -9,12 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 按鈕監聽
     document.getElementById('btnPreview').onclick = generateJSON;
-    document.getElementById('btnDownload').onclick = downloadJSON;
+    document.getElementById('btnDownload').onclick = downloadJSON; // 下載純結構
+    
+    // ✅ 新增：下載 Layout
+    document.getElementById('btnExportLayout').onclick = downloadLayoutJSON; 
+
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
     document.getElementById('fileInput').onchange = (e) => importJSON(e.target);
     document.getElementById('btnClear').onclick = openConfirmModal;
     
-    // 視窗關閉按鈕
     document.getElementById('btnCloseCodeModal').onclick = () => closeModal('codeModal');
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
@@ -36,23 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 2. 核心資料結構 ---
     let nodes = []; 
     let edges = []; 
-    
-    // 相機 (視角)
     let camera = { x: 0, y: 0, zoom: 1 };
     
-    // 互動狀態
     let selectedNode = null;
     let selectedEdge = null;
     let draggingNode = null;
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
-    
     let isCreatingEdge = false;
     let dragStartNode = null;
-    
-    let mouseX = 0; 
-    let mouseY = 0; 
-
+    let mouseX = 0; let mouseY = 0; 
     let contextMenuPos = { x: 0, y: 0 }; 
     let isRenaming = false;
     let renamingNode = null;
@@ -61,25 +57,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const BASE_RADIUS = 25; 
     const PADDING_RADIUS = 15; 
     const THEME = {
-        nodeFill: '#1e1e1e',
-        nodeBorder: '#00e5ff',
-        nodeText: '#ffffff',
-        nodeSelected: '#ff0055',
-        edge: '#666666',
-        edgeSelected: '#ff0055',
-        edgeArrow: '#00e5ff',
-        grid: 'rgba(0, 229, 255, 0.1)'
+        nodeFill: '#1e1e1e', nodeBorder: '#00e5ff', nodeText: '#ffffff',
+        nodeSelected: '#ff0055', edge: '#666666', edgeSelected: '#ff0055',
+        edgeArrow: '#00e5ff', grid: 'rgba(0, 229, 255, 0.1)'
     };
 
-    // --- 3. 渲染循環 (Render Loop) ---
-    // 即使沒有物理，為了拖曳的順暢感，我們還是使用動畫循環來重繪
+    // --- 3. 渲染循環 ---
     function animate() {
         draw();          
         requestAnimationFrame(animate);
     }
-    requestAnimationFrame(animate); // 啟動循環
+    requestAnimationFrame(animate);
 
-    // 視窗大小調整
     function resize() {
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
@@ -91,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resize);
     setTimeout(resize, 100);
 
-    // --- 4. 座標系統 ---
+    // --- 4. 座標系統 & 工具 ---
     function screenToWorld(sx, sy) {
         const rect = canvas.getBoundingClientRect();
         return {
@@ -99,33 +88,28 @@ document.addEventListener('DOMContentLoaded', () => {
             y: (sy - rect.top - camera.y) / camera.zoom
         };
     }
-
     function worldToScreen(wx, wy) {
         return {
             x: (wx * camera.zoom) + camera.x,
             y: (wy * camera.zoom) + camera.y
         };
     }
-
     function calculateNodeRadius(name) {
         ctx.font = 'bold 14px Arial';
         const metrics = ctx.measureText(name);
         return Math.max(BASE_RADIUS, (metrics.width / 2) + PADDING_RADIUS);
     }
 
-    // --- 5. 互動事件監聽 (滑鼠/鍵盤) ---
-
+    // --- 5. 互動事件監聽 ---
     canvas.addEventListener('mousedown', e => {
         if(isRenaming) finishRenaming();
         hideContextMenu();
         
         const pos = screenToWorld(e.clientX, e.clientY);
         mouseX = pos.x; mouseY = pos.y;
-
         const node = getNodeAt(pos.x, pos.y);
         const edge = getEdgeAt(pos.x, pos.y);
 
-        // 中鍵 或 空白處+左鍵 = 平移
         if (e.button === 1 || (e.button === 0 && !node && !edge && !e.shiftKey)) {
             isPanning = true;
             panStart = { x: e.clientX, y: e.clientY };
@@ -133,90 +117,56 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 左鍵操作
         if (e.button === 0) { 
-            // 如果在連線模式下點擊空白處，取消連線
-            if (isCreatingEdge && !node) {
-                 cancelEdgeCreation();
-                 return;
-            }
-
+            if (isCreatingEdge && !node) { cancelEdgeCreation(); return; }
             if (e.shiftKey && node) {
-                // Shift+拖曳 = 建立連線
-                isCreatingEdge = true;
-                dragStartNode = node;
-                selectedNode = null;
-                selectedEdge = null;
+                isCreatingEdge = true; dragStartNode = node;
+                selectedNode = null; selectedEdge = null;
             } else if (node) {
                 if (isCreatingEdge && dragStartNode && node !== dragStartNode) {
-                    // 完成連線
                     createEdge(dragStartNode, node);
-                    isCreatingEdge = false;
-                    dragStartNode = null;
+                    isCreatingEdge = false; dragStartNode = null;
                 } else {
-                    // 開始拖曳節點
-                    draggingNode = node;
-                    selectedNode = node;
-                    selectedEdge = null;
+                    draggingNode = node; selectedNode = node; selectedEdge = null;
                 }
             } else if (edge) {
-                // 選取連線
-                selectedEdge = edge;
-                selectedNode = null;
+                selectedEdge = edge; selectedNode = null;
             } else {
-                // 取消選取
-                selectedNode = null;
-                selectedEdge = null;
+                selectedNode = null; selectedEdge = null;
             }
         }
     });
 
     canvas.addEventListener('mousemove', e => {
         const pos = screenToWorld(e.clientX, e.clientY);
-        mouseX = pos.x; 
-        mouseY = pos.y;
+        mouseX = pos.x; mouseY = pos.y;
 
         if (isPanning) {
             const dx = e.clientX - panStart.x;
             const dy = e.clientY - panStart.y;
-            camera.x += dx;
-            camera.y += dy;
+            camera.x += dx; camera.y += dy;
             panStart = { x: e.clientX, y: e.clientY };
             if(isRenaming) updateRenameInputPosition(); 
             return;
         }
-
         if (draggingNode) {
-            // 手動拖曳更新位置
-            draggingNode.x = pos.x;
-            draggingNode.y = pos.y;
+            draggingNode.x = pos.x; draggingNode.y = pos.y;
             if(isRenaming && renamingNode === draggingNode) updateRenameInputPosition();
         }
     });
 
     canvas.addEventListener('mouseup', e => {
-        if (isPanning) {
-            isPanning = false;
-            canvas.style.cursor = 'default';
-            return;
-        }
-
+        if (isPanning) { isPanning = false; canvas.style.cursor = 'default'; return; }
         const pos = screenToWorld(e.clientX, e.clientY);
-        
-        // 處理連線建立
         if (isCreatingEdge && dragStartNode) {
             const targetNode = getNodeAt(pos.x, pos.y);
             if (targetNode && targetNode !== dragStartNode) {
                 createEdge(dragStartNode, targetNode);
                 if (e.shiftKey) { isCreatingEdge = false; dragStartNode = null; }
             } else if (e.shiftKey) {
-                // Shift 放開如果沒選到東西，取消
-                isCreatingEdge = false;
-                dragStartNode = null;
+                isCreatingEdge = false; dragStartNode = null;
             }
         } 
-        
-        // 點擊連線切換方向
         if (selectedEdge && !draggingNode && !isCreatingEdge) {
              const edgeCheck = getEdgeAt(pos.x, pos.y);
              if (edgeCheck === selectedEdge) {
@@ -232,18 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const delta = e.deltaY < 0 ? 1 : -1;
         const zoomFactor = Math.exp(delta * zoomIntensity); 
         const newZoom = camera.zoom * zoomFactor;
-
         if (newZoom > 0.05 && newZoom < 10) {
             const rect = canvas.getBoundingClientRect();
             const mouseScreenX = e.clientX - rect.left;
             const mouseScreenY = e.clientY - rect.top;
             const mouseWorldX = (mouseScreenX - camera.x) / camera.zoom;
             const mouseWorldY = (mouseScreenY - camera.y) / camera.zoom;
-
             camera.zoom = newZoom;
             camera.x = mouseScreenX - mouseWorldX * camera.zoom;
             camera.y = mouseScreenY - mouseWorldY * camera.zoom;
-
             if(isRenaming) updateRenameInputPosition();
         }
     }, { passive: false });
@@ -308,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function hideContextMenu() { contextMenu.style.display = 'none'; }
 
-    // --- 7. 節點操作 ---
+    // --- 7. 節點與連線操作 ---
     function startRenaming(node) {
         if (!node) return;
         isRenaming = true;
@@ -335,34 +282,23 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelRenaming();
     }
     function cancelRenaming() {
-        isRenaming = false;
-        renamingNode = null;
-        renameInput.style.display = 'none';
-        canvas.focus();
+        isRenaming = false; renamingNode = null;
+        renameInput.style.display = 'none'; canvas.focus();
     }
     renameInput.addEventListener('blur', () => setTimeout(() => { if (isRenaming) finishRenaming(); }, 100));
 
     function spawnNode() {
         const name = "State" + (nodes.length + 1);
         const r = calculateNodeRadius(name);
-        // 新增節點時，直接放在滑鼠(右鍵)位置
-        const newNode = { 
-            id: Date.now(), 
-            x: contextMenuPos.x, 
-            y: contextMenuPos.y, 
-            name, 
-            radius: r
-        };
+        const newNode = { id: Date.now(), x: contextMenuPos.x, y: contextMenuPos.y, name, radius: r };
         nodes.push(newNode);
         setTimeout(() => startRenaming(newNode), 50);
     }
-
     function deleteNode(node) {
         edges = edges.filter(edge => edge.from !== node && edge.to !== node);
         nodes = nodes.filter(n => n !== node);
         selectedNode = null;
     }
-
     function startEdgeCreation(node) { isCreatingEdge = true; dragStartNode = node; }
     function cancelEdgeCreation() { isCreatingEdge = false; dragStartNode = null; }
     function createEdge(n1, n2) {
@@ -375,10 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawGrid();
-
         ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x, camera.y);
 
-        // 畫連線
         edges.forEach(edge => {
             const isSelected = (edge === selectedEdge);
             ctx.strokeStyle = isSelected ? THEME.edgeSelected : THEME.edge;
@@ -386,53 +320,33 @@ document.addEventListener('DOMContentLoaded', () => {
             drawArrow(edge.from, edge.to, edge.type === 'bidirectional', isSelected);
         });
 
-        // 畫建立連線的虛線
         if (isCreatingEdge && dragStartNode) {
-            ctx.strokeStyle = '#aaa';
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(dragStartNode.x, dragStartNode.y);
-            ctx.lineTo(mouseX, mouseY);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.strokeStyle = '#aaa'; ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.moveTo(dragStartNode.x, dragStartNode.y);
+            ctx.lineTo(mouseX, mouseY); ctx.stroke(); ctx.setLineDash([]);
         }
 
-        // 畫節點
         nodes.forEach(node => {
             ctx.beginPath();
             ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-            ctx.fillStyle = THEME.nodeFill;
-            ctx.fill();
+            ctx.fillStyle = THEME.nodeFill; ctx.fill();
             ctx.lineWidth = 2 / camera.zoom * camera.zoom; 
             ctx.strokeStyle = (node === selectedNode) ? THEME.nodeSelected : THEME.nodeBorder;
             ctx.stroke();
-            
             ctx.fillStyle = THEME.nodeText;
             ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(node.name, node.x, node.y);
         });
     }
 
     function drawGrid() {
         let gridSize = 40 * camera.zoom;
-        while(gridSize < 20) gridSize *= 2;
-        while(gridSize > 80) gridSize /= 2;
-
-        const offsetX = camera.x % gridSize;
-        const offsetY = camera.y % gridSize;
-
-        ctx.beginPath();
-        ctx.strokeStyle = THEME.grid;
-        ctx.lineWidth = 1;
-
-        for (let x = offsetX; x < canvas.width; x += gridSize) {
-            ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
-        }
-        for (let y = offsetY; y < canvas.height; y += gridSize) {
-            ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
-        }
+        while(gridSize < 20) gridSize *= 2; while(gridSize > 80) gridSize /= 2;
+        const offsetX = camera.x % gridSize; const offsetY = camera.y % gridSize;
+        ctx.beginPath(); ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
+        for (let x = offsetX; x < canvas.width; x += gridSize) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+        for (let y = offsetY; y < canvas.height; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
         ctx.stroke();
     }
 
@@ -444,11 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const endX = toNode.x - toNode.radius * Math.cos(angle);
         const endY = toNode.y - toNode.radius * Math.sin(angle);
 
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
         ctx.fillStyle = isSelected ? THEME.edgeSelected : THEME.edgeArrow;
         ctx.beginPath();
         ctx.moveTo(endX, endY);
@@ -465,12 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 9. 碰撞檢測 (點擊判定) ---
     function getNodeAt(x, y) {
-        // 反向遍歷，確保先選到上層的節點
         for (let i = nodes.length - 1; i >= 0; i--) {
-            const n = nodes[i];
-            if (Math.hypot(n.x - x, n.y - y) < n.radius) return n;
+            const n = nodes[i]; if (Math.hypot(n.x - x, n.y - y) < n.radius) return n;
         }
         return null;
     }
@@ -491,24 +398,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // --- 10. JSON 匯入匯出 ---
+    // --- 9. 純 JSON 匯出 (Adjacency List) ---
     function generateJSON() {
         document.getElementById('codeOutput').value = JSON.stringify(buildJSONObj(), null, 2);
         document.getElementById('codeModal').style.display = 'flex';
     }
     function downloadJSON() {
         const json = document.getElementById('codeOutput').value || JSON.stringify(buildJSONObj(), null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        let filename = projectTitle.value.trim();
-        if(!filename || filename === 'Untitled') filename = 'graph_adj_list';
-        a.download = `${filename}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        saveFile(json, 'graph_adj_list.json');
     }
     function downloadJSONFromModal() { downloadJSON(); }
     
@@ -525,21 +422,131 @@ document.addEventListener('DOMContentLoaded', () => {
         return adjList;
     }
 
+    // --- 10. Layout JSON 匯出 (✅ 新增功能) ---
+    function downloadLayoutJSON() {
+        // 我們需要儲存：
+        // 1. 節點資訊 (名稱、X、Y)
+        // 2. 連線資訊 (來源、目標、類型)
+        const layoutData = {
+            format: "layout_v1",
+            nodes: nodes.map(n => ({
+                name: n.name,
+                x: n.x,
+                y: n.y,
+                radius: n.radius
+            })),
+            // edges 我們存名字，匯入時再對應回物件
+            edges: edges.map(e => ({
+                from: e.from.name,
+                to: e.to.name,
+                type: e.type
+            }))
+        };
+
+        const jsonStr = JSON.stringify(layoutData, null, 2);
+        // 檔名加上 _layout 後綴
+        saveFile(jsonStr, 'graph_layout.json');
+    }
+
+    function saveFile(content, defaultName) {
+        const blob = new Blob([content], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        let filename = projectTitle.value.trim();
+        if(!filename || filename === 'Untitled') filename = defaultName.replace('.json', '');
+        
+        // 根據是不是 layout 來決定檔名
+        if(defaultName.includes('layout')) {
+            a.download = `${filename}_layout.json`;
+        } else {
+            a.download = `${filename}.json`;
+        }
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // --- 11. 匯入邏輯 (✅ 智慧判斷) ---
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
-        const fileNameWithoutExt = file.name.replace(/\.json$/i, "");
-        projectTitle.value = fileNameWithoutExt;
+        
+        // 檔名處理：移除 .json 和 _layout
+        let rawName = file.name.replace(/\.json$/i, "");
+        if (rawName.endsWith('_layout')) {
+            rawName = rawName.substring(0, rawName.length - 7);
+        }
+        projectTitle.value = rawName;
         updateTitleStyle();
+
         const reader = new FileReader();
         reader.onload = function(e) {
-            try { parseAndDrawJSON(JSON.parse(e.target.result)); } catch (err) { alert("JSON 格式錯誤"); }
+            try { 
+                const data = JSON.parse(e.target.result);
+                
+                // ✅ 判斷是哪種格式
+                if (data.format === "layout_v1" && Array.isArray(data.nodes)) {
+                    // A. Layout 格式 -> 還原位置
+                    parseLayoutFormat(data);
+                } else {
+                    // B. 純 Adjacency List -> 隨機排列
+                    parseSimpleFormat(data);
+                }
+            } catch (err) { 
+                console.error(err);
+                alert("JSON 格式錯誤"); 
+            }
             input.value = '';
         };
         reader.readAsText(file);
     }
 
-    function parseAndDrawJSON(data) {
+    // 處理 Layout 格式 (還原)
+    function parseLayoutFormat(data) {
+        nodes = [];
+        edges = [];
+        
+        // 1. 還原節點
+        const nodeMap = {};
+        data.nodes.forEach(nData => {
+            const newNode = {
+                id: Date.now() + Math.random(), // 唯一ID
+                name: nData.name,
+                x: nData.x,
+                y: nData.y,
+                radius: nData.radius || calculateNodeRadius(nData.name)
+            };
+            nodes.push(newNode);
+            nodeMap[newNode.name] = newNode;
+        });
+
+        // 2. 還原連線
+        if (Array.isArray(data.edges)) {
+            data.edges.forEach(eData => {
+                const source = nodeMap[eData.from];
+                const target = nodeMap[eData.to];
+                if (source && target) {
+                    edges.push({ from: source, to: target, type: eData.type });
+                }
+            });
+        }
+
+        // 3. 重置相機到中心 (或可選擇儲存相機位置)
+        camera.x = canvas.width / 2;
+        camera.y = canvas.height / 2;
+        camera.zoom = 1;
+        
+        // 嘗試將圖形置中顯示
+        // centerGraph(); // 選用
+        draw();
+    }
+
+    // 處理純 Simple 格式 (隨機)
+    function parseSimpleFormat(data) {
         nodes = []; edges = [];
         const nodeSet = new Set();
         Object.keys(data).forEach(k => {
@@ -547,7 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const allNodeNames = Array.from(nodeSet).sort();
         
-        // 載入時隨機分佈
         allNodeNames.forEach((name) => {
             nodes.push({
                 id: name, name: name,
@@ -571,12 +577,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         });
-        // 載入後重置相機
         camera.x = canvas.width / 2; camera.y = canvas.height / 2; camera.zoom = 1;
         draw();
     }
 
-    // --- 11. Modal 視窗 ---
+    // --- 12. Modal ---
     function openConfirmModal() { document.getElementById('confirmModal').style.display = 'flex'; }
     function confirmClearCanvas() { nodes = []; edges = []; projectTitle.value = 'Untitled'; updateTitleStyle(); closeModal('confirmModal'); }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
