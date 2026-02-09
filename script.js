@@ -154,8 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     draggingNode = node;
                     selectedNode = node;
                     selectedEdge = null;
-                    // 拖曳時輕微喚醒物理，但不劇烈
-                    if(simulationAlpha < 0.1) simulationAlpha = 0.1;
+                    // 拖曳時輕微喚醒物理
+                    if(simulationAlpha < 0.2) simulationAlpha = 0.2;
                 }
             } else if (edge) {
                 selectedEdge = edge;
@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!existing) edges.push({ from: n1, to: n2, type: 'directed' });
     }
 
-    // --- 8. 物理引擎 (核心修復: 孤立點控制) ---
+    // --- 8. 物理引擎 (核心：度數中心性) ---
     function startAutoLayout() {
         if (nodes.length === 0) return;
         simulationAlpha = 1.0; 
@@ -372,26 +372,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePhysics() {
         if (simulationAlpha < 0.01) return;
-        simulationAlpha *= 0.96; // 稍微加快衰減速度
-
-        const REPULSION = 6000;
-        const SPRING_LEN = 150;
-        const SPRING_STRENGTH = 0.03; 
-        const CENTER_GRAVITY = 0.02; 
         
-        // 初始化力
-        nodes.forEach(node => { node.fx = 0; node.fy = 0; });
+        // 修正 1: 讓冷卻更慢，給物理引擎更多時間跑位
+        simulationAlpha *= 0.99; 
 
-        // 1. 排斥力 (加入距離限制，解決遠處干擾)
+        // 參數設定
+        const REPULSION = 8000;
+        const SPRING_LEN = 150;
+        const SPRING_STRENGTH = 0.05; 
+        
+        // 重置力並計算 Degree (連線數)
+        nodes.forEach(node => { 
+            node.fx = 0; 
+            node.fy = 0;
+            node.degree = 0; 
+        });
+
+        // 計算 Degree
+        edges.forEach(edge => {
+            edge.from.degree++;
+            edge.to.degree++;
+        });
+
+        // 1. 排斥力 (所有節點互相排斥，不設距離限制，確保能推開孤立點)
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 let dx = nodes[i].x - nodes[j].x;
                 let dy = nodes[i].y - nodes[j].y;
                 let distSq = dx * dx + dy * dy;
                 
-                // ✅ 關鍵修改：距離超過 600 就不計算排斥力
-                // 這樣「那一坨」節點就不會霸凌遠處的孤單節點
-                if (distSq > 360000) continue; 
                 if (distSq === 0) { dx = 1; distSq = 1; } 
 
                 let dist = Math.sqrt(distSq);
@@ -423,22 +432,30 @@ document.addEventListener('DOMContentLoaded', () => {
             v.fx -= fx; v.fy -= fy;
         });
 
-        // 3. 應用力與向心力
+        // 3. 應用力與「度數重力 (Degree-based Gravity)」
         nodes.forEach(node => {
-            const isIsolated = !edges.some(e => e.from === node || e.to === node);
-            
-            // 計算離中心距離
             const distToCenter = Math.sqrt(node.x * node.x + node.y * node.y) || 1;
-
-            // ✅ 關鍵修改：孤立節點的重力邏輯
-            // 如果是孤立的，重力會隨著距離「指數級」增加
-            // 這樣可以把它牢牢抓在中心附近，不會被排斥力推走
+            
+            // 修正 2: 依據 Degree 決定重力
+            // Degree 越高 (Hub) -> 重力越強 -> 往中心靠
+            // Degree 0 (Isolated) -> 負重力 -> 往外推
+            
             let gravityForce = 0;
-            if (isIsolated) {
-                // 距離越遠，拉力越強 (使用平方比例)
-                gravityForce = (distToCenter / 200) * 0.1 * simulationAlpha; 
+
+            if (node.degree === 0) {
+                // 孤立點：如果太靠近中心 (<300)，給予強大的推力把它推走
+                // 如果已經在外面 (>300)，給予極微弱的拉力避免飛走
+                if (distToCenter < 300) {
+                    gravityForce = -0.05 * simulationAlpha; // 負值 = 推離中心
+                } else {
+                    gravityForce = 0.001 * simulationAlpha; // 極微弱拉力
+                }
+            } else if (node.degree === 1) {
+                // 末端點：弱重力，讓它被彈簧拉著就好，不要主動擠中心
+                gravityForce = 0.01 * simulationAlpha;
             } else {
-                gravityForce = CENTER_GRAVITY * simulationAlpha;
+                // 核心點：連線越多，重力越強
+                gravityForce = (0.02 + (node.degree * 0.005)) * simulationAlpha;
             }
             
             node.fx -= (node.x / distToCenter) * gravityForce * 50;
@@ -450,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 限制最大速度
             const speed = Math.sqrt(node.vx*node.vx + node.vy*node.vy);
-            const MAX_SPEED = 15 * simulationAlpha; 
+            const MAX_SPEED = 20 * simulationAlpha; 
             if (speed > MAX_SPEED) {
                 node.vx = (node.vx / speed) * MAX_SPEED;
                 node.vy = (node.vy / speed) * MAX_SPEED;
