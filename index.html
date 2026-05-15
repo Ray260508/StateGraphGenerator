@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -24,30 +24,29 @@
     <div class="main-container">
         <div class="controls">
             <div class="instructions">
-                <strong>操作說明 (手動模式)：</strong>
+                <strong>Instructions (Manual Mode):</strong>
                 <ul>
-                    <li><strong>拖曳空白處</strong>：移動視角 (Pan)</li>
-                    <li><strong>滾輪</strong>：縮放視角 (Zoom)</li>
-                    <li><strong>拖曳節點</strong>：移動位置</li>
-                    <li><strong>Shift + 拖曳</strong>：建立連線</li>
-                    <li><strong>右鍵</strong>：新增節點 / 編輯選單</li>
-                    <li><strong>雙擊節點</strong>：重新命名</li>
-                    <li><strong>點擊連線</strong>：切換 單向/雙向</li>
-                    <li><strong>Del / Backspace</strong>：刪除</li>
+                    <li><strong>Drag Empty Area</strong>: Pan canvas</li>
+                    <li><strong>Mouse Wheel</strong>: Zoom view</li>
+                    <li><strong>Drag Node</strong>: Move position</li>
+                    <li><strong>Shift + Click</strong>: Create connection</li>
+                    <li><strong>Right-Click</strong>: Add node / Edit menu</li>
+                    <li><strong>Double-Click Node</strong>: Rename</li>
+                    <li><strong>Click Connection</strong>: Toggle directed/bidirectional</li>
+                    <li><strong>Delete / Backspace</strong>: Delete selection</li>
                 </ul>
             </div>
 
-            <button class="btn-gen" id="btnPreview">預覽 JSON</button>
-            <button class="btn-dl" id="btnDownload">下載 JSON (純結構)</button>
-            <button class="btn-dl" id="btnExportLayout" style="border-color: #f1c40f; color: #f1c40f;">匯出 Layout
-                (含位置)</button>
+            <button class="btn-gen" id="btnPreview">Preview JSON</button>
+            <button class="btn-dl" id="btnDownload">Download JSON (Structure Only)</button>
+            <button class="btn-dl" id="btnExportLayout" style="border-color: #f1c40f; color: #f1c40f;">Export Layout (With Positions)</button>
 
             <div class="separator"></div>
 
-            <label for="fileInput" class="file-upload-label btn-import">匯入 JSON 檔案</label>
+            <label for="fileInput" class="file-upload-label btn-import">Import JSON File</label>
             <input type="file" id="fileInput" accept=".json">
 
-            <button class="btn-clear" id="btnClear">清空畫布</button>
+            <button class="btn-clear" id="btnClear">Clear Canvas</button>
         </div>
 
         <div class="canvas-wrapper" id="canvasContainer">
@@ -63,19 +62,19 @@
             <h3>Generated JSON</h3>
             <textarea id="codeOutput" readonly></textarea>
             <div class="modal-buttons">
-                <button class="btn-dl" id="btnModalDownload">下載檔案</button>
-                <button class="btn-close" id="btnCloseCodeModal">關閉</button>
+                <button class="btn-dl" id="btnModalDownload">Download File</button>
+                <button class="btn-close" id="btnCloseCodeModal">Close</button>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="confirmModal">
         <div class="modal-box small-box">
-            <h3>確認清空</h3>
-            <p>您確定要刪除所有節點與連線嗎？<br>此動作無法復原。</p>
+            <h3>Confirm Clear</h3>
+            <p>Are you sure you want to delete all nodes and connections?<br>This action cannot be undone.</p>
             <div class="modal-buttons center-buttons">
-                <button class="btn-close" id="btnCancelClear">取消</button>
-                <button class="btn-danger" id="btnConfirmClear">確認清空</button>
+                <button class="btn-close" id="btnCancelClear">Cancel</button>
+                <button class="btn-danger" id="btnConfirmClear">Confirm Clear</button>
             </div>
         </div>
     </div>
