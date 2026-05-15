@@ -63,7 +63,7 @@ h1 {
     font-size: 1.5rem;
     font-weight: bold;
     text-transform: none;
-    /* 允許大小寫 */
+    /* Allow mixed case */
     letter-spacing: 1px;
     color: var(--accent-color);
     text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);

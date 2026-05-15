@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. 初始化與 DOM 綁定 ---
+    // --- 1. Initialize & DOM Binding ---
     const canvas = document.getElementById('graphCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('canvasContainer');
@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const renameInput = document.getElementById('renameInput');
     const projectTitle = document.getElementById('projectTitle');
 
-    // 按鈕監聽
+    // Button Listeners
     document.getElementById('btnPreview').onclick = generateJSON;
-    document.getElementById('btnDownload').onclick = downloadJSON; // 下載純結構
+    document.getElementById('btnDownload').onclick = downloadJSON; // Download pure structure
 
-    // ✅ 新增：下載 Layout
+    // ✅ New: Download Layout
     document.getElementById('btnExportLayout').onclick = downloadLayoutJSON;
 
     document.getElementById('btnModalDownload').onclick = downloadJSONFromModal;
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnCancelClear').onclick = () => closeModal('confirmModal');
     document.getElementById('btnConfirmClear').onclick = confirmClearCanvas;
 
-    // 標題樣式邏輯
+    // Title Style Logic
     function updateTitleStyle() {
         if (projectTitle.value.trim() === 'Untitled' || projectTitle.value.trim() === '') {
             projectTitle.classList.add('is-default');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     projectTitle.addEventListener('blur', () => { if (projectTitle.value.trim() === '') { projectTitle.value = 'Untitled'; updateTitleStyle(); } });
     projectTitle.addEventListener('keydown', (e) => { if (e.key === 'Enter') projectTitle.blur(); });
 
-    // --- 2. 核心資料結構 ---
+    // --- 2. Core Data Structure ---
     let nodes = [];
     let edges = [];
     let camera = { x: 0, y: 0, zoom: 1 };
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRenaming = false;
     let renamingNode = null;
 
-    // 常數
+    // Constants
     const BASE_RADIUS = 25;
     const PADDING_RADIUS = 15;
     const THEME = {
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         edgeArrow: '#00e5ff', grid: 'rgba(0, 229, 255, 0.1)'
     };
 
-    // --- 3. 渲染循環 ---
+    // --- 3. Animation Loop ---
     function animate() {
         draw();
         requestAnimationFrame(animate);
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resize);
     setTimeout(resize, 100);
 
-    // --- 4. 座標系統 & 工具 ---
+    // --- 4. Coordinate System & Utilities ---
     function screenToWorld(sx, sy) {
         const rect = canvas.getBoundingClientRect();
         return {
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.max(BASE_RADIUS, (metrics.width / 2) + PADDING_RADIUS);
     }
 
-    // --- 5. 互動事件監聽 ---
+    // --- 5. Interaction Event Listeners ---
     canvas.addEventListener('mousedown', e => {
         if (isRenaming) finishRenaming();
         hideContextMenu();
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 6. 右鍵選單 ---
+    // --- 6. Right-Click Context Menu ---
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
         const pos = screenToWorld(e.clientX, e.clientY);
@@ -233,12 +233,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildContextMenu(targetNode) {
         contextMenu.innerHTML = '';
         if (targetNode) {
-            addMenuItem("🔗 新增連線", () => startEdgeCreation(targetNode));
+            addMenuItem("🔗 Add Connection", () => startEdgeCreation(targetNode));
             addMenuSeparator();
-            addMenuItem("✏️ 重新命名", () => startRenaming(targetNode));
-            addMenuItem("🗑️ 刪除", () => deleteNode(targetNode));
+            addMenuItem("✏️ Rename", () => startRenaming(targetNode));
+            addMenuItem("🗑️ Delete", () => deleteNode(targetNode));
         } else {
-            addMenuItem("🔵 新增節點", () => spawnNode());
+            addMenuItem("🔵 Add Node", () => spawnNode());
         }
     }
     function addMenuItem(text, onClick) {
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function hideContextMenu() { contextMenu.style.display = 'none'; }
 
-    // --- 7. 節點與連線操作 ---
+    // --- 7. Node & Edge Operations ---
     function startRenaming(node) {
         if (!node) return;
         isRenaming = true;
@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!existing) edges.push({ from: n1, to: n2, type: 'directed' });
     }
 
-    // --- 8. 繪圖引擎 ---
+    // --- 8. Rendering Engine ---
     function draw() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // --- 9. 純 JSON 匯出 (Adjacency List) ---
+    // --- 9. Pure JSON Export (Adjacency List) ---
     function generateJSON() {
         document.getElementById('codeOutput').value = JSON.stringify(buildJSONObj(), null, 2);
         document.getElementById('codeModal').style.display = 'flex';
@@ -422,11 +422,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return adjList;
     }
 
-    // --- 10. Layout JSON 匯出 ( 新增功能) ---
+    // --- 10. Layout JSON Export ( New Feature) ---
     function downloadLayoutJSON() {
-        // 儲存：
-        // 1. 節點資訊 (名稱、X、Y)
-        // 2. 連線資訊 (來源、目標、類型)
+        // Save:
+        // 1. Node information (name, X, Y)
+        // 2. Connection information (source, target, type)
         const layoutData = {
             format: "layout_v1",
             nodes: nodes.map(n => ({
@@ -435,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 y: n.y,
                 radius: n.radius
             })),
-            // edges 存名字，匯入時再對應回物件
+            // edges store names, map back to objects during import
             edges: edges.map(e => ({
                 from: e.from.name,
                 to: e.to.name,
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const jsonStr = JSON.stringify(layoutData, null, 2);
-        // 檔名加上 _layout 後綴
+        // Filename with _layout suffix
         saveFile(jsonStr, 'graph_layout.json');
     }
 
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let filename = projectTitle.value.trim();
         if (!filename || filename === 'Untitled') filename = defaultName.replace('.json', '');
 
-        // 根據是不是 layout 來決定檔名
+        // Determine filename based on layout or not
         if (defaultName.includes('layout')) {
             a.download = `${filename}_layout.json`;
         } else {
@@ -470,12 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
-    // --- 11. 匯入邏輯  ---
+    // --- 11. Import Logic  ---
     function importJSON(input) {
         const file = input.files[0];
         if (!file) return;
 
-        // 檔名處理：移除 .json 和 _layout
+        // Filename handling: remove .json and _layout
         let rawName = file.name.replace(/\.json$/i, "");
         if (rawName.endsWith('_layout')) {
             rawName = rawName.substring(0, rawName.length - 7);
@@ -488,33 +488,33 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(e.target.result);
                 
-                // 判斷是哪種格式
+                // Determine format
                 if (data.format === "layout_v1" && Array.isArray(data.nodes)) {
-                    // A. Layout 格式 -> 還原位置
+                    // A. Layout format -> restore position
                     parseLayoutFormat(data);
                 } else {
-                    // B. 純 Adjacency List -> 隨機排列
+                    // B. Pure Adjacency List -> random layout
                     parseSimpleFormat(data);
                 }
             } catch (err) {
                 console.error(err);
-                alert("JSON 格式錯誤");
+                alert("JSON format error");
             }
             input.value = '';
         };
         reader.readAsText(file);
     }
 
-    // 處理 Layout 格式 (還原)
+    // Handle Layout format (restore)
     function parseLayoutFormat(data) {
         nodes = [];
         edges = [];
 
-        // 1. 還原節點
+        // 1. Restore nodes
         const nodeMap = {};
         data.nodes.forEach(nData => {
             const newNode = {
-                id: Date.now() + Math.random(), // 唯一ID
+                id: Date.now() + Math.random(), // Unique ID
                 name: nData.name,
                 x: nData.x,
                 y: nData.y,
@@ -524,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
             nodeMap[newNode.name] = newNode;
         });
 
-        // 2. 還原連線
+        // 2. Restore edges
         if (Array.isArray(data.edges)) {
             data.edges.forEach(eData => {
                 const source = nodeMap[eData.from];
@@ -535,17 +535,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // 3. 重置相機到中心 (或可選擇儲存相機位置)
+        // 3. Reset camera to center (or optionally save camera position)
         camera.x = canvas.width / 2;
         camera.y = canvas.height / 2;
         camera.zoom = 1;
 
-        // 嘗試將圖形置中顯示
-        // centerGraph(); // 選用
+        // Attempt to center the graph
+        // centerGraph(); // Optional
         draw();
     }
 
-    // 處理純 Simple 格式 (隨機)
+    // Handle pure Simple format (random)
     function parseSimpleFormat(data) {
         nodes = []; edges = [];
         const nodeSet = new Set();
